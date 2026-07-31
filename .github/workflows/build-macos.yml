@@ -63,10 +63,13 @@ jobs:
           export LDFLAGS="-arch $arch -mmacosx-version-min=11.0"
           # scummvm-static 對每個外部庫都要 MacPorts 式的靜態 .a，runner 沒有 →
           # 把外部媒體/格式/網路庫與 TTS 全關掉，只留自編的 SDL2 + 內建 nuked-opl + 內建 Big5Font。
+          # [雷] 這串 --disable 不能照抄別的專案——選項會隨 ScummVM 版本增減。
+          # 本清單對 pinned commit 逐項用 `grep -- "--disable-X" configure` 驗過
+          #（第一次跑就是抄來的 --disable-printing 在這個版本不存在，整個 job 失敗）。
           ./configure --disable-all-engines --enable-engine=sci --disable-detection-full \
             --with-sdl-prefix="$sdl" \
             --disable-libcurl --disable-sdlnet --disable-tts --disable-taskbar \
-            --disable-system-dialogs --disable-printing \
+            --disable-system-dialogs \
             --disable-png --disable-jpeg --disable-theoradec --disable-vorbis \
             --disable-flac --disable-mad --disable-mpeg2 --disable-a52 --disable-fluidsynth \
             --disable-freetype2 --disable-faad --disable-gif --disable-16bit
