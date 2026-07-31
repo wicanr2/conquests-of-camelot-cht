@@ -19,6 +19,10 @@
  *
  */
 
+// Diagnostic switch: SCI_CHT_NOHIRES=1 forces the low-res (visual-plane) path so we can tell
+// "the hi-res glyph is wrong" apart from "something repaints over the display buffer".
+#define FORBIDDEN_SYMBOL_EXCEPTION_getenv
+
 #include "common/file.h"
 #include "graphics/big5.h"
 
@@ -51,6 +55,9 @@ static const int kHiH = 24;
 // True when the current draw/measure should take the hi-res dialogue path (upscaled display,
 // not a menu). Width metrics and drawing must agree on this so wrapping matches rendering.
 bool GfxFontChinese::useHiRes() const {
+	static const int forceLow = getenv("SCI_CHT_NOHIRES") ? 1 : 0;
+	if (forceLow)
+		return false;
 	return !_screen->menuTextActive() && _screen->getDisplayWidth() > _screen->getWidth();
 }
 
@@ -169,14 +176,24 @@ void GfxFontChinese::draw(uint16 chr, int16 top, int16 left, byte color, bool gr
 	uint16 screenWidth = _screen->fontIsUpscaled() ? _screen->getDisplayWidth() : _screen->getWidth();
 	uint16 screenHeight = _screen->fontIsUpscaled() ? _screen->getDisplayHeight() : _screen->getHeight();
 
+	// 同 drawHiRes：黑色那一趟膨脹一圈，補回 SCI 外框字的黑邊。
+	const bool dilate = (color == 0);
 	for (int y = 0; y < _big5Height; y++) {
 		for (int x = 0; x < kBig5Width; x++) {
 			if (!glyph[y * kBig5Width + x])
 				continue;
 			int screenX = left + x;
 			int screenY = top + y;
-			if (0 <= screenX && screenX < screenWidth && 0 <= screenY && screenY < screenHeight)
+			if (dilate) {
+				static const int kOff[5][2] = {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+				for (int i = 0; i < 5; i++) {
+					const int sx = screenX + kOff[i][0], sy = screenY + kOff[i][1];
+					if (0 <= sx && sx < screenWidth && 0 <= sy && sy < screenHeight)
+						_screen->putFontPixel(top, sx, y + kOff[i][1], color);
+				}
+			} else if (0 <= screenX && screenX < screenWidth && 0 <= screenY && screenY < screenHeight) {
 				_screen->putFontPixel(top, screenX, y, color);
+			}
 		}
 	}
 }
@@ -199,6 +216,13 @@ void GfxFontChinese::drawHiRes(uint16 point, int16 top, int16 left, byte color) 
 	const int dispW = _screen->getDisplayWidth();
 	const int dispH = _screen->getDisplayHeight();
 
+	// [HARD] SCI 用「兩個字型疊畫」做外框字：先用實心遮罩字型（本作是 font.104）畫黑色，
+	// 再用細字型（font.103）畫白色。中文若兩趟都畫同一套 Big5 字模，白色會**完全蓋掉**黑色
+	// → 外框消失。白字畫在白雲上就等於整段看不見（本作開場旁白就是這樣消失的，
+	// 而且字模本身是好的，看起來只像「字太淡」，很容易誤判成字型烘壞）。
+	// 修法：黑色那一趟把字模膨脹一圈，讓它比白色本體大，外框就回來了。
+	const bool dilate = (color == 0);
+
 	const bool savedUpscaled = _screen->fontIsUpscaled();
 	_screen->setFontIsUpscaled(true);
 	for (int gy = 0; gy < _hiH; gy++) {
@@ -211,7 +235,23 @@ void GfxFontChinese::drawHiRes(uint16 point, int16 top, int16 left, byte color) 
 			const int dispX = dispLeft + gx;
 			if (dispX < 0 || dispX >= dispW)
 				continue;
-			_screen->putFontPixel(dispTop, dispX, gy, color);
+			if (dilate) {
+				// Fatten by one pixel in a plus shape (N/S/E/W, no diagonals). A full 3x3
+				// block also works but is too heavy for CJK: Chinese glyphs pack strokes
+				// 2px apart, so the diagonal pixels close the gaps and dense characters
+				// (毅／精／謀) collapse into blobs. Latin letters have room to spare, which
+				// is why the game's own outline font can afford the fatter mask.
+				static const int kOff[5][2] = {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+				for (int i = 0; i < 5; i++) {
+					const int px = dispX + kOff[i][0];
+					const int py = dispY + kOff[i][1];
+					if (px < 0 || px >= dispW || py < 0 || py >= dispH)
+						continue;
+					_screen->putFontPixel(dispTop, px, py - dispTop, color);
+				}
+			} else {
+				_screen->putFontPixel(dispTop, dispX, gy, color);
+			}
 		}
 	}
 	_screen->setFontIsUpscaled(savedUpscaled);
