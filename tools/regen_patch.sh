@@ -1,11 +1,11 @@
 #!/bin/bash
 # 從 pinned upstream 抓 pristine，對 scummvm-src 逐檔 diff → 重生 patches/0001-sci-cht-zh_twn.patch
 set -e
-cd /home/anr2/scummvm/kq4/workplace
+cd "$(dirname "$0")/.."
 COMMIT=$(cat patches/UPSTREAM_COMMIT.txt)
 BASE="https://raw.githubusercontent.com/scummvm/scummvm/$COMMIT"
 SRC=scummvm-src
-PRIS=/tmp/kq4_pristine
+PRIS=/tmp/claude-1000/cam_pristine
 FILES=(
   engines/sci/graphics/animate.cpp
   engines/sci/engine/kstring.cpp
@@ -33,6 +33,6 @@ for f in "${FILES[@]}"; do
   diff -u --label "a/$f" --label "b/$f" "$PRIS/$f" "$SRC/$f" >> "$OUT" || true
 done
 echo "=== 重生完成，驗證可套用到 pristine ==="
-cp -r "$PRIS" /tmp/kq4_verify
-( cd /tmp/kq4_verify && patch -p1 --dry-run < /home/anr2/scummvm/kq4/workplace/"$OUT" ) && echo "✅ patch -p1 dry-run 通過"
+cp -r "$PRIS" /tmp/claude-1000/cam_verify
+( cd /tmp/claude-1000/cam_verify && patch -p1 --dry-run < "$PWD/$OUT" ) && echo "✅ patch -p1 dry-run 通過"
 echo "受改檔數: ${#FILES[@]}；patch 行數: $(wc -l < "$OUT")"
