@@ -24,7 +24,7 @@
 
 ## 目前進度
 
-這是進行中的專案。
+**v1.0 已發布**：[Releases](https://github.com/wicanr2/conquests-of-camelot-cht/releases/tag/v1.0)（Linux／Windows／macOS 三平台 patch 版）。
 
 | 項目 | 狀態 |
 |---|---|
@@ -36,7 +36,7 @@
 | 標題中文疊圖 | ❌ 量測後放棄（畫面淨空只有 10 列，最小字模需 15 列） |
 | baked art（credits 職稱） | ❌ 同上，字高只有 8 列 |
 | 打包 Linux／Windows | ✅ patch 與 full 各一 |
-| 打包 macOS | 🔄 由 GitHub Actions 產出 |
+| 打包 macOS | ✅ patch 由 GitHub Actions 產出、full 本機注入 |
 
 ## 這一版是什麼
 
