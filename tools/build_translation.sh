@@ -35,9 +35,12 @@ for l in open("$OUT_UTF8",encoding='utf-8'):
     if zh.strip()!=en.strip(): n+=1
 print(f"覆蓋: {n}/{t} ({100*n//t}%) 已譯")
 PY
-# 烘 16px 低解析 + runtime Big5 tsv
-python3 tools/build_cht.py "$OUT_UTF8" game --size 15
-# 烘 hi-res：尺寸須對齊 fontchinese.cpp 的 kHiW=24 / kHiH=22（縮字後；改這裡也要同步改引擎常數）
-python3 tools/bake_hires_font.py game/qfg1_big5_hi.fnt "$OUT_UTF8" --size 22 --height 22 --width 24
+# 烘 16x15 低解析（倚天原生點陣）+ runtime Big5 tsv → dist-cht/（版控快照，打包與 CI 都從這裡取）
+mkdir -p dist-cht
+python3 tools/build_cht.py "$OUT_UTF8" dist-cht --size 15
+# 烘 hi-res：尺寸須對齊 fontchinese.cpp 的 kHiW=24 / kHiH=22（改這裡也要同步改引擎常數）
+python3 tools/bake_hires_font.py dist-cht/camelot_big5_hi.fnt "$OUT_UTF8" --size 22 --height 22 --width 24
+# 部署到遊戲目錄（引擎讀寫死檔名，走 SearchMan）
+cp dist-cht/translation.tsv dist-cht/camelot_big5.fnt dist-cht/camelot_big5_hi.fnt game/
 echo "=== 產物 ==="
-ls -la game/translation.tsv game/qfg1_big5.fnt game/qfg1_big5_hi.fnt
+ls -la dist-cht/

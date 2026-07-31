@@ -97,3 +97,27 @@ fals	銅幣	攻略 19 期 p.44
 Skill Points	技能點數	攻略 18 期 p.29 註記「技能（Skill）」
 Wisdom Points	智慧點數	同上體例
 Soul Points	靈魂點數	同上體例
+#
+# --- 前 8 批翻譯浮現的新專名（2026-08-01 回填，供後續批次沿用）---
+Pendragon	潘德拉貢	b02/b05/b06 三批一致採用的通行音譯
+Joseph of Arimathea	亞利馬太的約瑟	聖經和合本通行譯名
+Lady Elayne	艾蓮公主	攻略「森林女巫（艾蓮公主）」，被黑武士變成女巫的公主
+Mendip Hills	門迪普丘陵	英格蘭薩默塞特郡實際地名
+Triple Goddess	三重女神	★不可譯「三位一體」——那個詞在本作專指基督教 Trinity，會混淆
+Chapel of the Two Gods	雙神神殿	原文明點 Two Gods（基督 vs 米夏拉的信仰衝突，本作主題）
+Queen's Bower	後宮花園	攻略城堡平面圖手寫標註
+Harbourmaster	港務司	攻略 18 期 p.28
+Treasurer	司庫	掌管寶庫的官職
+Hugo the Bold	無畏雨果	派瑞樂斯森林的老獵人
+labarum	拉巴倫	羅馬軍旗徽記，查無通行中譯故音譯
+Liber ex Doctrina	Liber ex Doctrina	拉丁書名，保留原文（比照攻略對 Widdershins／Al-Sirat 的處理）
+Book of Lore	智典	上條的俗稱
+Message of the Rose	玫瑰箴言	使用玫瑰前要誦念的那句話
+Amanita Muscaria	毒蠅傘	真菌學名通行中譯
+Graham Chapman	葛拉罕·查普曼	Monty Python 團員，1989 過世，遊戲內的真實世界致意
+Gwen	昆海兒	Gwenhyver 的暱稱，中文補回全名以免單字突兀
+#
+# --- 稱謂語域（保持全域一致）---
+m'lord	吾王	
+sire	陛下	
+my liege	吾主	

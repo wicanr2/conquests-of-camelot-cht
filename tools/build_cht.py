@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
-"""英雄傳奇1 繁中化 build 工具。
+"""亞瑟王傳奇 繁中化 build 工具。
 
 輸入:UTF-8 的 translation.tsv(英文原文 <TAB> 中文譯文,每行一則)。
 輸出:
   - runtime translation.tsv(英文 <TAB> Big5 bytes):ScummVM SCI 引擎讀取,做內容比對替換。
     TAB/LF 不出現在 Big5,故可安全當分隔。
-  - qfg1_big5.fnt:Big5 點陣字型,格式對齊 ScummVM Graphics::Big5Font::loadPrefixedRaw:
+  - camelot_big5.fnt:Big5 點陣字型,格式對齊 ScummVM Graphics::Big5Font::loadPrefixedRaw:
     每字 = big-endian Big5 碼(高位元已設)+ height 列 × 2 bytes(16px 寬 1bpp,MSB 在左)。
 
 用法:build_cht.py <in_utf8_tsv> <out_dir> [--size N] [--font PATH] [--face IDX]
-純輸出;字型渲染用 Pillow。
+字形來源 = 倚天中文系統 (ETEN 3.53) 原生 16x15 點陣字,不是 TTF rasterize
+(TTF 縮到 15px 會糊、筆劃比例不對;倚天是為該尺寸手工調的點陣)。
+[雷] STDFONT 只有漢字,全形標點在 SPCFONT —— 漏帶會讓 ，。！？「」 全部掉 fallback。
+純 stdlib(不需 Pillow)。
 """
-import sys, struct, argparse
-from PIL import Image, ImageFont, ImageDraw
+import sys, os, struct, argparse
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from eten_font import EtenFont
 
 WIDTH = 16  # Big5Font 固定字寬 kChineseTraditionalWidth
 
@@ -68,10 +72,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("tsv")
     ap.add_argument("outdir")
-    ap.add_argument("--size", type=int, default=15, help="字型高度(px)")
-    # 預設古籍風明體(AR PL UMing TW);face 2 = TW
-    ap.add_argument("--font", default="/usr/share/fonts/truetype/arphic/uming.ttc")
-    ap.add_argument("--face", type=int, default=2)
+    ap.add_argument("--size", type=int, default=15, help="字型高度(px);倚天 15 點固定")
+    ap.add_argument("--std", default="art/fonts/STDFONT.15", help="倚天漢字點陣")
+    ap.add_argument("--spc", default="art/fonts/SPCFONT.15", help="倚天全形符號點陣(漏帶標點會掉 fallback)")
+    ap.add_argument("--embolden", action="store_true",
+                    help="筆劃水平膨脹 1px。15 點倚天只有偏細的明體,嫌太細時開")
     ap.add_argument("--corrections", default="translation/corrections.tsv",
                     help="錯誤中文\\t正確中文,子字串替換(可無)")
     a = ap.parse_args()
@@ -133,44 +138,32 @@ def main():
             out.write(big5)
             out.write(b"\n")
 
-    # 2) 烘 Big5 字型(只含用到的字)
-    font = ImageFont.truetype(a.font, H, index=a.face)
+    # 2) 烘 Big5 字型(只含用到的字),字形取自倚天原生點陣
+    eten = EtenFont(a.std, a.spc)
     glyphs = []  # (big5code, bytes)
     baked = 0
+    missing = []
     for ch in sorted(chars):
         try:
-            b5 = ch.encode("big5")
+            b5 = eten.big5(ch)
         except UnicodeEncodeError:
             continue
         if len(b5) != 2:
             continue
+        g = eten.glyph(ch)
+        if g is None:
+            missing.append(ch)
+            continue
+        if a.embolden:
+            g = eten.embolden(g)
         code = (b5[0] << 8) | b5[1]  # 高位元組 >=0x81 → 0x8000 已設
-        # 渲染到 WIDTH×H 1bpp:以字面 ink bbox 置中,避免全形標點/小字偏高。
-        img = Image.new("L", (WIDTH, H), 0)
-        d = ImageDraw.Draw(img)
-        try:
-            bbox = d.textbbox((0, 0), ch, font=font)  # (l,t,r,b) 實際墨水範圍
-        except Exception:
-            bbox = (0, 0, WIDTH, H)
-        gw = bbox[2] - bbox[0]
-        gh = bbox[3] - bbox[1]
-        ox = (WIDTH - gw) // 2 - bbox[0]
-        oy = (H - gh) // 2 - bbox[1]
-        d.text((ox, oy), ch, fill=255, font=font)
-        rows_bytes = bytearray()
-        px = img.load()
-        for y in range(H):
-            for byte_i in range(WIDTH // 8):  # 2 bytes / 列
-                bits = 0
-                for bit in range(8):
-                    x = byte_i * 8 + bit
-                    on = 1 if px[x, y] >= 128 else 0
-                    bits = (bits << 1) | on
-                rows_bytes.append(bits)
-        glyphs.append((code, bytes(rows_bytes)))
+        glyphs.append((code, g))
         baked += 1
+    if missing:
+        # fallback 數量是品質指標:一大批掉進來時先懷疑索引公式或漏帶 SPCFONT,別無腦補字型
+        sys.stderr.write(f"WARN 倚天字庫查無 {len(missing)} 字:{''.join(missing)}\n")
 
-    fnt = a.outdir + "/qfg1_big5.fnt"
+    fnt = a.outdir + "/camelot_big5.fnt"
     with open(fnt, "wb") as out:
         for code, bmp in glyphs:
             out.write(struct.pack(">H", code))
@@ -178,7 +171,7 @@ def main():
         out.write(struct.pack(">H", 0xFFFF))  # 終結
 
     print(f"譯文 {len(rows)} 則 → {runtime}")
-    print(f"字型 {baked} 字 (H={H}, W={WIDTH}) → {fnt}")
+    print(f"字型 {baked} 字 (倚天 {WIDTH}x{H}) → {fnt}")
 
 if __name__ == "__main__":
     main()
