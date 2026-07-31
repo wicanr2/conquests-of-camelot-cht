@@ -43,5 +43,7 @@ python3 tools/build_cht.py "$OUT_UTF8" dist-cht --size 15
 python3 tools/bake_hires_eten.py dist-cht/camelot_big5_hi.fnt "$OUT_UTF8"
 # 部署到遊戲目錄（引擎讀寫死檔名，走 SearchMan）
 cp dist-cht/translation.tsv dist-cht/camelot_big5.fnt dist-cht/camelot_big5_hi.fnt game/
+# 標題疊圖（缺檔時引擎會靜默略過，不影響其他中文化）
+[ -f dist-cht/camelot_title.ovl ] && cp dist-cht/camelot_title.ovl game/
 echo "=== 產物 ==="
 ls -la dist-cht/
