@@ -38,8 +38,9 @@ PY
 # 烘 16x15 低解析（倚天原生點陣）+ runtime Big5 tsv → dist-cht/（版控快照，打包與 CI 都從這裡取）
 mkdir -p dist-cht
 python3 tools/build_cht.py "$OUT_UTF8" dist-cht --size 15
-# 烘 hi-res：尺寸須對齊 fontchinese.cpp 的 kHiW=24 / kHiH=22（改這裡也要同步改引擎常數）
-python3 tools/bake_hires_font.py dist-cht/camelot_big5_hi.fnt "$OUT_UTF8" --size 22 --height 22 --width 24
+# 烘 hi-res（倚天原生 24 點）：尺寸須對齊 fontchinese.cpp 的 kHiW=24 / kHiH=24 / kBig5WidthHi=12
+# [雷] 兩邊不一致 → 引擎逐字讀錯位，畫面上中文字互相重疊（kq4 遺留的 20x20 vs 24x22 就是這個坑）
+python3 tools/bake_hires_eten.py dist-cht/camelot_big5_hi.fnt "$OUT_UTF8"
 # 部署到遊戲目錄（引擎讀寫死檔名，走 SearchMan）
 cp dist-cht/translation.tsv dist-cht/camelot_big5.fnt dist-cht/camelot_big5_hi.fnt game/
 echo "=== 產物 ==="

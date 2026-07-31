@@ -38,15 +38,15 @@ static const int kBig5Width = 14;
 // Hi-res advance (dialogue path): the 20px hi-res glyph box exactly fills the 20px display
 // advance (2 * kBig5WidthHi), so characters pack edge-to-edge — dense per line but still big
 // enough to read (validated in leisure_suit_2; player feedback: 字太大/太鬆/台詞被截斷).
-static const int kBig5WidthHi = 10;
+static const int kBig5WidthHi = 12;
 
 // Hi-res Big5 font (own format, bake_hires_font.py): kHiW-px-wide, kHiH-row glyphs drawn
 // straight onto the 640x400 display buffer for sharp strokes under ZH_TWN upscaling.
-// kHiW <= kBig5WidthHi*2 (=20) so glyphs never bleed into the next cell; row stride is
+// kHiW <= kBig5WidthHi*2 (=24) so glyphs never bleed into the next cell; row stride is
 // ceil(kHiW/8) bytes, so kHiW need not be a multiple of 8.
 static const char *kChineseHiResFontFile = "camelot_big5_hi.fnt";
-static const int kHiW = 20;
-static const int kHiH = 20;
+static const int kHiW = 24;
+static const int kHiH = 24;
 
 // True when the current draw/measure should take the hi-res dialogue path (upscaled display,
 // not a menu). Width metrics and drawing must agree on this so wrapping matches rendering.

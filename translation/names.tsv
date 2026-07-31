@@ -121,3 +121,32 @@ Gwen	昆海兒	Gwenhyver 的暱稱，中文補回全名以免單字突兀
 m'lord	吾王	
 sire	陛下	
 my liege	吾主	
+#
+# --- b09-b16 浮現（2026-08-01 回填）---
+Pool of Siloam	西羅亞池	聖經和合本（約翰福音 9:7）
+Hezekiah's Aqueduct	希西家水道	通行史地譯名
+Spring of Gihon	基訓泉	聖經和合本
+Dome of the Rock	圓頂清真寺	通行譯名
+Ice Maiden	冰霜仙子	湖中女神的冷酷化身，與「湖中女神」是同一人的不同稱呼
+Cotswold Hills	科茲沃爾德丘陵	英格蘭實際地名
+Yasser	亞西爾	市集竊賊，比照「亞西爾·阿拉法特」的通行音譯
+Rollin' Jack	搖擺傑克	水手，呼應原文 rolling gait（搖晃步態）的雙關
+Conal Cearnach	科納爾·柯納赫	愛爾蘭傳說人物（船名）
+Frastrada	芙拉斯特拉妲	查理曼之妻（船名）
+Charlemagne	查理曼	通行譯名
+Malaga	馬拉加	通行地名
+Tunis	突尼斯	通行地名
+Alexandria	亞歷山卓	通行地名
+habib	朋友	阿拉伯語暱稱，非專名；譯「朋友」比音譯「哈比卜」貼合正劇口白
+mukhtar	村長	阿拉伯地方官頭銜
+wadi	旱谷	沙漠地形；★b13 曾譯「乾河谷」，已用 converge 收斂成「旱谷」
+felafel	法拉費	台灣中東料理店常見用法
+trilithon	三石塔	巨石陣建築術語
+dolmen	支石墓	同上
+henge	環壘	同上
+Saracens	撒拉遜人	★複數泛指城中守軍；單數 Saracen 才是「撒拉遜武士」那位 boss
+#
+# --- [HARD] 待用 key-scoped 工具處理的衝突（converge.tsv 修不掉）---
+# m'lud：b12 譯「吾王」、b13 譯「老爺」。定案為「老爺」——說話者是水手／港務司這類平民，
+#   未必知道對方是王，與 m'lord→吾王 有語域區隔。但「吾王」是 m'lord 的正確譯法、全篇大量出現，
+#   純中文替換會誤傷 → 必須用「依英文 key 圈定範圍」的工具改（規則：英文regex<TAB>錯誤中文<TAB>正確中文）。

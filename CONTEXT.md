@@ -84,10 +84,38 @@
 | `Gwenhyver` | Guinevere | 待定 |
 | `Excaliber` | Excalibur | 待定 |
 
-## 七、待實測
+## 七、中文顯示（2026-08-01 實機驗證通過）
 
-- 狀態列 SKILL / WISDOM / SOUL 三種分數的實際顯示形式與可用寬度
-  （抽字結果中**找不到這三個標籤**，可能是 script 內動態組字或引擎繪製）。
+啟用方式：**`--language=tw`**（SCI0 走 CLI 即可，不必寫進 target config——
+那是 SCI1 的作法，別混）。實機確認對白框中文正確斷行、標點正常、框會依中文長度自動加大。
+
+### 字形：倚天 (ETEN 3.53) 原生點陣，非 TTF
+
+| 用途 | 尺寸 | 來源 |
+|---|---|---|
+| hi-res 對白（640×400） | **24×24** | `STDFONT.24`（`etunpack.py` 解 `STD.24M`）+ `SPCFONT.24` |
+| low-res（選單等） | 16×15 | `STDFONT.15` + `SPCFONT.15` |
+
+字型檔在 `art/fonts/`，從 `/home/anr2/cht/etan_font/ET353S.iso` 取出。
+`tools/eten_font.py` 有 oracle 自驗（`idx=0` 必須是「一」），**動索引公式前先跑它**。
+
+### [HARD] 引擎常數與烘字尺寸必須一致
+
+```
+fontchinese.cpp   kHiW = 24   kHiH = 24   kBig5WidthHi = 12   （12×2 = 24 display px）
+bake_hires_eten.py            24×24
+```
+
+**這個坑是從 kq4 繼承來的**：kq4 的 `fontchinese.cpp` 寫 `kHiW=20/kHiH=20`，
+它的 `build_translation.sh` 卻烘 `24×22`，註解還寫「須對齊 kHiW=24/kHiH=22」——
+三處互相矛盾。照抄過來的結果是引擎逐字讀錯位，**畫面上中文字互相重疊、糊成一團**
+（看起來像「字型烘壞了」，其實是尺寸協議不一致）。改任一邊都要同步改另一邊。
+
+## 八、待實測
+
+- 遊戲內選單列（File／Game／Speed／Action／Information）的中文顯示效果，
+  尤其**選單列高度**（LSL2 踩過：9px 選單列裝不下 14px 中文 → 殘影）。
+  低解析路徑的 advance 目前沿用 kq4 的 `kBig5Width=14`，而倚天 16×15 glyph 寬 16，
+  可能被裁掉右邊 2px（kb 建議選單用 16）——要實機看過再調。
 - 遊戲物件名（console `vmvars g 1`），供 `send ?<obj> newRoom <n>` 換場用。
-- SCI0 強制 640×400 upscale 與本作狀態列是否相容
-  （KQ1SCI 踩過：有常駐狀態列的 SCI0 遊戲開 upscale 會壞，且餵英文一樣壞）。
+- 640×400 upscale 已確認可用（本作無常駐狀態列，KQ1SCI 那個坑不適用）。
