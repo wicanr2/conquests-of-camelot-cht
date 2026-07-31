@@ -1,0 +1,20 @@
+# [HARD] 交付政策：patch-only。原始遊戲資源與 MT-32 ROM 絕不入庫。
+game/
+extract/
+*.ROM
+
+# 上游 ScummVM 原始碼樹（811MB，靠 patches/UPSTREAM_COMMIT.txt 重建）
+scummvm-src/
+
+# 建構產物
+build/
+dist/
+dist-all/
+out/
+*.o
+*.d
+*.dwo
+
+# 暫存
+.DS_Store
+*.swp

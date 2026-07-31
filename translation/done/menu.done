@@ -1,0 +1,30 @@
+About Camelot`^c:Help`#1	關於亞瑟王傳奇`^c:說明`#1
+ File 	 檔案 
+Save Game`#5:Restore Game`#7:--!:Restart Game`#9:Quit`^q	存檔`#5:讀取進度`#7:--!:重新開始`#9:離開`^q
+ Game 	 遊戲 
+Music Off`#2=1:Volume...`^v:--!:Pause Game`^p:Repeat`#3	關閉音樂`#2=1:音量...`^v:--!:暫停`^p:重播`#3
+ Speed 	 速度 
+Set Speed`^s:Faster`+:Normal`=:Slower`-:--!:Arcade Difficulty...	設定速度`^s:加快`+:正常`=:放慢`-:--!:戰鬥難度...
+ Action 	 行動 
+Open Purse`^O:--!:Draw Sword`#8	打開錢袋`^O:--!:拔劍`#8
+ Information 	 資訊 
+Inventory`^I:--!:Ask about`^a:Ask Merlin`^t:Look at`^l:--!:Show Score	隨身物品`^I:--!:打聽`^a:請教梅林`^t:察看`^l:--!:查看分數
+  Conquests of Camelot Credits  	  亞瑟王傳奇 製作群  
+Restart	重新開始
+Continue	繼續
+Quit	離開
+Volume (1 - 16)?	音量（1 － 16）？
+Game paused	遊戲暫停
+Game speed:	遊戲速度：
+Fast	快速
+Medium	中速
+Slow	慢速
+Hard	困難
+Normal	普通
+Easy 	簡單 
+Give Money	給錢
+Sheathe sword	收劍入鞘
+Draw sword	拔劍
+Sound off	關閉音效
+Sound on	開啟音效
+Score	分數
