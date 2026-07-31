@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
 # 把 patched ScummVM + 遊戲資料(已合併中文化)+ MT-32 ROM 打包成雙擊即玩的完整 AppImage。
-# KQ4 只有一個版本(SCI0 EGA),不像 LSL1/QFG1 要分 ega/vga——用 --auto-detect 免指定 target。
+# 本作只有一個版本(1990 SCI0 EGA),用 --auto-detect 免指定 target。
 # 完整包（含遊戲資料 + ROM）→ dist-all/,不上 GitHub。
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"          # /home/anr2/scummvm/kq4/workplace
-REPO_ROOT="$(cd "$ROOT/.." && pwd)"                # /home/anr2/scummvm/kq4
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"          # <專案>/workplace
+REPO_ROOT="$(cd "$ROOT/.." && pwd)"                # <專案>
 source "$ROOT/tools/pkg_common.sh"                 # stage_mt32_rom
 
 STAGE="$ROOT/build/appimg-full"
 DIST="$REPO_ROOT/dist-all"
 APPDIR="$STAGE/AppDir"
-OUT="$DIST/KQ4-CHT-full-x86_64.AppImage"
+OUT="$DIST/CAMELOT-CHT-full-x86_64.AppImage"
 
 mkdir -p "$DIST"
 rm -rf "$APPDIR"; mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share/game"
 
 echo ">> 複製 scummvm + strip"
 cp "$ROOT/scummvm-src/scummvm" "$APPDIR/usr/bin/scummvm"
-docker run --rm --name kq4-pkg-strip -v "$APPDIR/usr/bin:/b" qfg1-build:latest strip /b/scummvm 2>/dev/null || true
+docker run --rm --name cam-pkg-strip -v "$APPDIR/usr/bin:/b" cam-build:latest strip /b/scummvm 2>/dev/null || true
 
-echo ">> 收集共享庫(qfg1-build 內 ldd,排除 glibc 核心)"
-docker run --rm --name kq4-pkg-libs \
+echo ">> 收集共享庫(cam-build 內 ldd,排除 glibc 核心)"
+docker run --rm --name cam-pkg-libs \
   -v "$APPDIR/usr/bin/scummvm:/collect/bin:ro" \
   -v "$APPDIR/usr/lib:/collect/out" \
   -v "$ROOT/tools/pkg_collect_libs.py:/collect/collect.py:ro" \
-  -w /collect qfg1-build:latest python3 collect.py bin out
+  -w /collect cam-build:latest python3 collect.py bin out
 echo "   $(ls "$APPDIR/usr/lib" | wc -l) 個 .so"
 
 echo ">> 放入遊戲資料(已含 translation.tsv + Big5 字型,原樣複製)"
@@ -46,24 +46,26 @@ exec "\$HERE/usr/bin/scummvm" --path="\$GAME" --language=tw --auto-detect $MT32A
 APPRUN
 chmod +x "$APPDIR/AppRun"
 
-cat > "$APPDIR/kq4-cht.desktop" <<DESK
+cat > "$APPDIR/camelot-cht.desktop" <<DESK
 [Desktop Entry]
 Type=Application
-Name=國王密使IV 羅賽拉的冒險（繁體中文版）
-Comment=King's Quest IV: The Perils of Rosella 繁體中文化 — ScummVM patch
+Name=亞瑟王傳奇 尋找聖杯（繁體中文版）
+Comment=Conquests of Camelot: The Search for the Grail 繁體中文化 — ScummVM patch
 Exec=AppRun
-Icon=kq4-cht
+Icon=camelot-cht
 Categories=Game;
 Terminal=false
 DESK
-cp "$ROOT/tools/assets/kq4-cht.png" "$APPDIR/kq4-cht.png"
-ln -sf kq4-cht.png "$APPDIR/.DirIcon"
+cp "$ROOT/tools/assets/camelot-cht.png" "$APPDIR/camelot-cht.png"
+ln -sf camelot-cht.png "$APPDIR/.DirIcon"
 
 rm -f "$OUT"
 echo ">> appimagetool 打包(--appimage-extract-and-run 免 FUSE)"
-docker run --rm --name kq4-pkg-appimagetool -v "$STAGE:/stage" -v "$ROOT/tools/.cache:/cache:ro" -e ARCH=x86_64 -w /stage \
-  qfg1-build:latest bash -c "apt-get update -qq >/dev/null && apt-get install -y -qq file >/dev/null && \
+docker run --rm --name cam-pkg-appimagetool -v "$STAGE:/stage" -v "$ROOT/tools/.cache:/cache:ro" -e ARCH=x86_64 -w /stage \
+  cam-build:latest bash -c "apt-get update -qq >/dev/null && apt-get install -y -qq file >/dev/null && \
     /cache/appimagetool-x86_64.AppImage --appimage-extract-and-run 'AppDir' '/stage/$(basename "$OUT")'"
 mv "$STAGE/$(basename "$OUT")" "$OUT"
+# [HARD] docker 產出的檔案 owner 是 root → 先 chown 回來，否則 chmod 會被拒絕
+docker run --rm -v "$DIST:/d" cam-build:latest chown -R 1000:1000 /d
 chmod +x "$OUT"
 echo ">> 完成: $OUT ($(du -h "$OUT" | cut -f1))"

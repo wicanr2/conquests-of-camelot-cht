@@ -1,0 +1,125 @@
+name: build-macos-patch
+
+# macOS 版只能在 macOS host 上 build（Apple SDK 授權），本機 Linux 交叉編譯不出來。
+# 產出的是 **patch 版**：只有引擎 + 中文資料，不含任何遊戲資源。
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+env:
+  SDL_VERSION: '2.30.9'
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 取上游 ScummVM（pinned commit）並套中文化 patch
+        run: |
+          # [雷] UPSTREAM_COMMIT.txt 只能放裸的 commit hash——這裡直接 cat 當 git ref，
+          # 後面加任何說明文字都會讓這步失敗。
+          COMMIT="$(cat patches/UPSTREAM_COMMIT.txt | tr -d '[:space:]')"
+          git clone --quiet https://github.com/scummvm/scummvm.git src
+          git -C src checkout --quiet "$COMMIT"
+          bash tools/apply_patches.sh src
+
+      # brew 的 sdl2 從 2026-06 起是 sdl2-compat（SDL3 shim），ScummVM 連上去玩家端會黑畫面。
+      # 一定要自源碼編 pinned 的真 SDL2，而且兩個弧各編一份。
+      - name: 自編 pinned SDL2（arm64 + x86_64 各一份）
+        run: |
+          curl -sL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL2-${SDL_VERSION}.tar.gz" | tar xz
+          for arch in arm64 x86_64; do
+            rm -rf "sdl-build-$arch"; cp -r "SDL2-${SDL_VERSION}" "sdl-build-$arch"
+            cat > build-sdl.sh <<'SDLEOF'
+          set -e
+          arch="$1"; prefix="$2"
+          cd "sdl-build-$arch"
+          ./configure --prefix="$prefix" --disable-shared --enable-static \
+            CFLAGS="-arch $arch -mmacosx-version-min=11.0" \
+            LDFLAGS="-arch $arch -mmacosx-version-min=11.0"
+          make -j"$(sysctl -n hw.ncpu)"
+          make install
+          SDLEOF
+            if [ "$arch" = "x86_64" ]; then
+              # x86_64 弧整段包進 arch -x86_64：configure 用 uname 判 host CPU
+              arch -x86_64 /bin/sh build-sdl.sh "$arch" "$PWD/sdl-$arch"
+            else
+              /bin/sh build-sdl.sh "$arch" "$PWD/sdl-$arch"
+            fi
+          done
+
+      - name: 每弧各編 ScummVM 再 lipo 合併
+        run: |
+          cat > build-one.sh <<'BEOF'
+          set -e
+          arch="$1"; srcdir="$2"; tree="$3"; sdl="$4"
+          rm -rf "$tree"; cp -r "$srcdir" "$tree"
+          cd "$tree"
+          # [HARD] ScummVM 的 configure 不是 autoconf 友善的——CXXFLAGS/LDFLAGS 只能當環境變數餵，
+          # 當參數傳會被當成未知選項。
+          export CXXFLAGS="-arch $arch -mmacosx-version-min=11.0"
+          export LDFLAGS="-arch $arch -mmacosx-version-min=11.0"
+          # scummvm-static 對每個外部庫都要 MacPorts 式的靜態 .a，runner 沒有 →
+          # 把外部媒體/格式/網路庫與 TTS 全關掉，只留自編的 SDL2 + 內建 nuked-opl + 內建 Big5Font。
+          ./configure --disable-all-engines --enable-engine=sci --disable-detection-full \
+            --with-sdl-prefix="$sdl" \
+            --disable-libcurl --disable-sdlnet --disable-tts --disable-taskbar \
+            --disable-system-dialogs --disable-printing \
+            --disable-png --disable-jpeg --disable-theoradec --disable-vorbis \
+            --disable-flac --disable-mad --disable-mpeg2 --disable-a52 --disable-fluidsynth \
+            --disable-freetype2 --disable-faad --disable-gif --disable-16bit
+          make -j"$(sysctl -n hw.ncpu)"
+          BEOF
+          for arch in arm64 x86_64; do
+            if [ "$arch" = "x86_64" ]; then
+              arch -x86_64 /bin/sh build-one.sh "$arch" "$PWD/src" "$PWD/build-$arch" "$PWD/sdl-$arch"
+            else
+              /bin/sh build-one.sh "$arch" "$PWD/src" "$PWD/build-$arch" "$PWD/sdl-$arch"
+            fi
+          done
+          mkdir -p out
+          lipo -create "build-arm64/scummvm" "build-x86_64/scummvm" -output out/scummvm
+          lipo -info out/scummvm
+          lipo -info out/scummvm | grep -q arm64  || { echo "缺 arm64"; exit 1; }
+          lipo -info out/scummvm | grep -q x86_64 || { echo "缺 x86_64"; exit 1; }
+
+      - name: 打包（注入版控的中文資料，不含遊戲資源）
+        run: |
+          # [雷] 注入清單要含「全部」cht 檔——漏一個的症狀是「其他都中文、就那一處是英文」，
+          # 很難從 CI log 看出來。這裡直接把 dist-cht/ 整個複製過去。
+          STAGE=pkg/CAMELOT-CHT
+          mkdir -p "$STAGE/cht-data"
+          cp out/scummvm "$STAGE/scummvm"
+          chmod +x "$STAGE/scummvm"
+          cp dist-cht/* "$STAGE/cht-data/"
+          ls -la "$STAGE/cht-data/"
+          cat > "$STAGE/啟動.command" <<'RUNEOF'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          ./scummvm --extrapath="$PWD/cht-data" --language=tw "$@"
+          RUNEOF
+          chmod +x "$STAGE/啟動.command"
+          cat > "$STAGE/修復-macOS.command" <<'FIXEOF'
+          #!/bin/bash
+          # macOS 會給從網路下載的檔案加上 quarantine 屬性，直接開會被 Gatekeeper 擋。
+          cd "$(dirname "$0")"
+          xattr -dr com.apple.quarantine . && echo "已解除隔離，現在可以執行「啟動.command」"
+          FIXEOF
+          chmod +x "$STAGE/修復-macOS.command"
+          cp 讀我.txt "$STAGE/" 2>/dev/null || true
+          # [HARD] Release 資產檔名只能 ASCII（GitHub 上傳會把中文字整段剝掉）；包**內**的中文檔名不受限
+          tar czf CAMELOT-CHT-patch-macos-universal.tar.gz -C pkg CAMELOT-CHT
+
+      - name: 稽核——patch 包不得含遊戲資源
+        run: |
+          # 判斷依據是實際檔案而不是檔名
+          n=$(tar tzf CAMELOT-CHT-patch-macos-universal.tar.gz | grep -icE 'resource\.(map|00[0-9])|sciv\.exe|\.ROM$' || true)
+          echo "包內遊戲資源/ROM 檔數：$n"
+          [ "$n" -eq 0 ] || { echo "patch 包含有遊戲資源或 ROM，不可發布"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CAMELOT-CHT-patch-macos-universal
+          path: CAMELOT-CHT-patch-macos-universal.tar.gz

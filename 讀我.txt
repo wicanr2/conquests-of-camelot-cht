@@ -1,0 +1,7 @@
+亞瑟王傳奇 尋找聖杯 繁體中文化
+Conquests of Camelot: The Search for the Grail (Sierra On-Line, 1990)
+
+這個包只有中文化過的 ScummVM 與中文資料，不含遊戲本身。
+你需要自備正版遊戲。
+
+原始碼與說明：https://github.com/wicanr2/conquests-of-camelot-cht
