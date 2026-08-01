@@ -20,6 +20,11 @@
 
 ![遊戲內中文畫面](screenshots/ingame-cht-opening.png)
 
+[![推廣影片](screenshots/promo-thumb.png)](https://youtu.be/D3eq-eQIRgw)
+
+> 推廣影片（70 秒）：<https://youtu.be/D3eq-eQIRgw>　畫面是引擎實機截圖，
+> 配樂是原版的 Roland MT-32 音樂。
+
 ---
 
 ## 目錄
