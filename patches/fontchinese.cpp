@@ -74,11 +74,18 @@ GfxFontChinese::GfxFontChinese(ResourceManager *resMan, GfxScreen *screen, GuiRe
 	} else {
 		warning("GfxFontChinese: could not open '%s'; Chinese glyphs will be blank", kChineseFontFile);
 	}
-	// Line-height metric for layout (getHeight). Capped below the native glyph height so lines
-	// pack tighter and boxes hold more text (issue #1: 對話後面被截斷). The hi-res glyph (kHiH)
-	// is the actual drawn height; low-res is only a rare fallback under ZH_TWN (always upscaled).
-	if (_big5Height > 12)
-		_big5Height = 12;
+	// Line-height metric for layout (getHeight), in the game's logical 320x200 coords; the
+	// hi-res path draws at top*2, so one unit here == 2 display rows.
+	//
+	// Capped below the native glyph height so lines pack tighter and boxes hold more text
+	// (issue #1: 對話後面被截斷). But it must stay strictly above kHiH/2: at exactly 12 the
+	// line pitch (24px) equals the glyph height (24px), leaving zero gap — and because the
+	// 倚天 24x24 cell has no built-in margin, adjacent lines' strokes touch and the text turns
+	// into a smear. Only visible on multi-line borderless text (the intro crawl over the
+	// castle); framed dialogue boxes are short enough that it reads as merely tight.
+	// 13 => 26px pitch, 2px of air. 見 CONTEXT.md「開場字幕行距」。
+	if (_big5Height > 13)
+		_big5Height = 13;
 
 	_hiW = kHiW;
 	_hiH = kHiH;
@@ -236,15 +243,21 @@ void GfxFontChinese::drawHiRes(uint16 point, int16 top, int16 left, byte color) 
 			if (dispX < 0 || dispX >= dispW)
 				continue;
 			if (dilate) {
-				// Fatten by one pixel in a plus shape (N/S/E/W, no diagonals). A full 3x3
-				// block also works but is too heavy for CJK: Chinese glyphs pack strokes
-				// 2px apart, so the diagonal pixels close the gaps and dense characters
-				// (毅／精／謀) collapse into blobs. Latin letters have room to spare, which
-				// is why the game's own outline font can afford the fatter mask.
-				static const int kOff[5][2] = {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-				for (int i = 0; i < 5; i++) {
-					const int px = dispX + kOff[i][0];
-					const int py = dispY + kOff[i][1];
+				// Fatten the black pass by one pixel so the white pass cannot cover it.
+				// A plus shape (N/S/E/W) leaves the diagonals bare, and CJK is full of
+				// 撇／捺 strokes running diagonally — over a light background (the intro
+				// crawl across sky and cloud) the outline breaks up along exactly those
+				// strokes and the text washes out. The full 3x3 keeps it continuous.
+				// SCI_CHT_OUTLINE=cross reverts to the plus shape for A/B comparison.
+				static const int kCross[5][2] = {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+				static const int kBox[9][2] = {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1},
+				                               {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
+				const char *outlineMode = getenv("SCI_CHT_OUTLINE");
+				const bool cross = outlineMode && !strcmp(outlineMode, "cross");
+				const int n = cross ? 5 : 9;
+				for (int i = 0; i < n; i++) {
+					const int px = dispX + (cross ? kCross[i][0] : kBox[i][0]);
+					const int py = dispY + (cross ? kCross[i][1] : kBox[i][1]);
 					if (px < 0 || px >= dispW || py < 0 || py >= dispH)
 						continue;
 					_screen->putFontPixel(dispTop, px, py - dispTop, color);

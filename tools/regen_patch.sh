@@ -32,7 +32,14 @@ for f in "${FILES[@]}"; do
   # diff -u：label 用 a/ b/ 方便 patch -p1；若無差異 diff 回傳 1，忽略
   diff -u --label "a/$f" --label "b/$f" "$PRIS/$f" "$SRC/$f" >> "$OUT" || true
 done
+# fontchinese.cpp/.h 在 upstream 不存在（整支是本專案新增），diff 抓不到 →
+# 直接複製過去。漏了這步，patch 包會帶著舊版的中文繪字程式碼。
+cp "$SRC/engines/sci/graphics/fontchinese.cpp" "$SRC/engines/sci/graphics/fontchinese.h" patches/
+
 echo "=== 重生完成，驗證可套用到 pristine ==="
+# [雷] $OUT 是相對路徑，subshell 裡 cd 過去之後就解不到 → 先轉絕對路徑
+ABS_OUT="$PWD/$OUT"
+rm -rf /tmp/claude-1000/cam_verify
 cp -r "$PRIS" /tmp/claude-1000/cam_verify
-( cd /tmp/claude-1000/cam_verify && patch -p1 --dry-run < "$PWD/$OUT" ) && echo "✅ patch -p1 dry-run 通過"
+( cd /tmp/claude-1000/cam_verify && patch -p1 --dry-run < "$ABS_OUT" ) && echo "✅ patch -p1 dry-run 通過"
 echo "受改檔數: ${#FILES[@]}；patch 行數: $(wc -l < "$OUT")"

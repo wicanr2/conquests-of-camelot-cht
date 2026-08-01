@@ -1,8 +1,21 @@
-diff --git a/engines/sci/engine/kstring.cpp b/engines/sci/engine/kstring.cpp
-index fe35fd19..4b303585 100644
+--- a/engines/sci/graphics/animate.cpp
++++ b/engines/sci/graphics/animate.cpp
+@@ -489,6 +489,12 @@
+ 	Common::Rect lsRect;
+ 	Common::Rect workerRect;
+ 
++	// CHT: the title screen's sparkle cels animate via kAnimate and draw over the visual
++	// plane every frame, covering the Chinese subtitle overlay. Re-assert the overlay onto
++	// the visual plane before the bitsShow loop below so it wins on screen (issue #1.3).
++	if (_paint16->_chtTitleActive)
++		_paint16->drawChtTitleOverlay();
++
+ 	for (it = _list.begin(); it != end; ++it) {
+ 		if (it->showBitsFlag || !(it->signal & (kSignalRemoveView | kSignalNoUpdate) ||
+ 										(!(it->signal & kSignalRemoveView) && (it->signal & kSignalNoUpdate) && oldPicNotValid))) {
 --- a/engines/sci/engine/kstring.cpp
 +++ b/engines/sci/engine/kstring.cpp
-@@ -207,6 +207,58 @@ reg_t kReadNumber(EngineState *s, int argc, reg_t *argv) {
+@@ -207,6 +207,58 @@
  }
  
  
@@ -61,7 +74,7 @@ index fe35fd19..4b303585 100644
  /*  Format(targ_address, textresnr, index_inside_res, ...)
  ** or
  **  Format(targ_address, heap_text_addr, ...)
-@@ -249,6 +301,20 @@ reg_t kFormat(EngineState *s, int argc, reg_t *argv) {
+@@ -249,6 +301,20 @@
  
  	int index = (startarg == 3) ? argv[2].toUint16() : 0;
  	Common::String source_str = g_sci->getKernel()->lookupText(position, index);
@@ -82,7 +95,7 @@ index fe35fd19..4b303585 100644
  	const char* source = source_str.c_str();
  
  	debugC(kDebugLevelStrings, "Formatting \"%s\"", source);
-@@ -260,6 +326,18 @@ reg_t kFormat(EngineState *s, int argc, reg_t *argv) {
+@@ -260,6 +326,18 @@
  	for (i = startarg; i < argc; i++)
  		arguments[i-startarg] = argv[i].toUint16(); /* Parameters are copied to prevent overwriting */
  
@@ -101,7 +114,7 @@ index fe35fd19..4b303585 100644
  	while ((xfer = *source++)) {
  		if (xfer == '%') {
  			if (mode == 1) {
-@@ -311,6 +389,17 @@ reg_t kFormat(EngineState *s, int argc, reg_t *argv) {
+@@ -311,6 +389,17 @@
  
  				Common::String tempsource = g_sci->getKernel()->lookupText(reg,
  				                                  arguments[paramindex + 1]);
@@ -119,25 +132,6 @@ index fe35fd19..4b303585 100644
  				int slen = tempsource.size();
  				int extralen = strLength - slen;
  				assert((target - targetbuf) + extralen <= maxsize);
-diff --git a/engines/sci/graphics/animate.cpp b/engines/sci/graphics/animate.cpp
-index 5c29ebc5..72f51223 100644
---- a/engines/sci/graphics/animate.cpp
-+++ b/engines/sci/graphics/animate.cpp
-@@ -489,6 +489,12 @@ void GfxAnimate::updateScreen(byte oldPicNotValid) {
- 	Common::Rect lsRect;
- 	Common::Rect workerRect;
- 
-+	// CHT: the title screen's sparkle cels animate via kAnimate and draw over the visual
-+	// plane every frame, covering the Chinese subtitle overlay. Re-assert the overlay onto
-+	// the visual plane before the bitsShow loop below so it wins on screen (issue #1.3).
-+	if (_paint16->_chtTitleActive)
-+		_paint16->drawChtTitleOverlay();
-+
- 	for (it = _list.begin(); it != end; ++it) {
- 		if (it->showBitsFlag || !(it->signal & (kSignalRemoveView | kSignalNoUpdate) ||
- 										(!(it->signal & kSignalRemoveView) && (it->signal & kSignalNoUpdate) && oldPicNotValid))) {
-diff --git a/engines/sci/graphics/cache.cpp b/engines/sci/graphics/cache.cpp
-index fda7797e..b012b331 100644
 --- a/engines/sci/graphics/cache.cpp
 +++ b/engines/sci/graphics/cache.cpp
 @@ -30,6 +30,7 @@
@@ -148,7 +142,7 @@ index fda7797e..b012b331 100644
  #include "sci/graphics/view.h"
  
  namespace Sci {
-@@ -72,6 +73,10 @@ GfxFont *GfxCache::getFont(GuiResourceId fontId) {
+@@ -72,6 +73,10 @@
  		// Create special SJIS font in japanese games, when font 900 is selected
  		else if ((fontId == 900) && (g_sci->getLanguage() == Common::JA_JPN))
  			_cachedFonts[fontId] = new GfxFontSjis(_screen, fontId);
@@ -159,11 +153,9 @@ index fda7797e..b012b331 100644
  		else
  			_cachedFonts[fontId] = new GfxFontFromResource(_resMan, _screen, fontId);
  	}
-diff --git a/engines/sci/graphics/menu.cpp b/engines/sci/graphics/menu.cpp
-index cdabf3bf..a20d3c91 100644
 --- a/engines/sci/graphics/menu.cpp
 +++ b/engines/sci/graphics/menu.cpp
-@@ -368,6 +368,9 @@ void GfxMenu::drawBar() {
+@@ -368,6 +368,9 @@
  	else
  		_ports->moveTo(_screen->getWidth() - 8, 1);
  
@@ -173,7 +165,7 @@ index cdabf3bf..a20d3c91 100644
  	listIterator = _list.begin();
  	while (listIterator != listEnd) {
  		GuiMenuEntry *listEntry = *listIterator;
-@@ -384,6 +387,7 @@ void GfxMenu::drawBar() {
+@@ -384,6 +387,7 @@
  
  		listIterator++;
  	}
@@ -181,7 +173,7 @@ index cdabf3bf..a20d3c91 100644
  }
  
  // This helper calculates all text widths for all menus (only)
-@@ -676,6 +680,9 @@ void GfxMenu::drawMenu(uint16 oldMenuId, uint16 newMenuId) {
+@@ -676,6 +680,9 @@
  	else
  		_menuRect.right -= 8;
  	topPos = _menuRect.top + 1;
@@ -191,7 +183,7 @@ index cdabf3bf..a20d3c91 100644
  	listItemIterator = _itemList.begin();
  	while (listItemIterator != listItemEnd) {
  		listItemEntry = *listItemIterator;
-@@ -708,6 +715,7 @@ void GfxMenu::drawMenu(uint16 oldMenuId, uint16 newMenuId) {
+@@ -708,6 +715,7 @@
  		listItemIterator++;
  	}
  	_ports->textGreyedOutput(false);
@@ -199,8 +191,6 @@ index cdabf3bf..a20d3c91 100644
  
  	// Draw the black line again
  	_paint16->fillRect(_ports->_menuLine, 1, 0);
-diff --git a/engines/sci/graphics/paint16.cpp b/engines/sci/graphics/paint16.cpp
-index 2e901e8d..db7aa977 100644
 --- a/engines/sci/graphics/paint16.cpp
 +++ b/engines/sci/graphics/paint16.cpp
 @@ -19,6 +19,8 @@
@@ -212,7 +202,7 @@ index 2e901e8d..db7aa977 100644
  #include "sci/sci.h"
  #include "sci/engine/features.h"
  #include "sci/engine/state.h"
-@@ -47,7 +49,9 @@ GfxPaint16::GfxPaint16(ResourceManager *resMan, SegManager *segMan, GfxCache *ca
+@@ -47,7 +49,9 @@
  	: _resMan(resMan), _segMan(segMan), _cache(cache), _ports(ports),
  	  _coordAdjuster(coordAdjuster), _screen(screen), _palette(palette),
  	  _transitions(transitions), _audio(audio), _EGAdrawingVisualize(false),
@@ -223,7 +213,7 @@ index 2e901e8d..db7aa977 100644
  
  	// _animate and _text16 will be initialized later on
  	_animate = nullptr;
-@@ -88,6 +92,8 @@ void GfxPaint16::debugSetEGAdrawingVisualize(bool state) {
+@@ -88,6 +92,8 @@
  }
  
  void GfxPaint16::drawPicture(GuiResourceId pictureId, bool mirroredFlag, bool addToFlag, GuiResourceId paletteId) {
@@ -232,17 +222,20 @@ index 2e901e8d..db7aa977 100644
  	// Set up custom per-picture palette mod
  	doCustomPicPalette(_screen, pictureId);
  
-@@ -106,6 +112,71 @@ void GfxPaint16::drawPicture(GuiResourceId pictureId, bool mirroredFlag, bool ad
+@@ -106,6 +112,74 @@
  
  	// Reset custom per-picture palette mod
  	_screen->setCurPaletteMapValue(0);
 +
 +	// CHT: overlay a Traditional Chinese subtitle onto the KQ4 title screen (pic 96, drawn last).
-+	// The "King's Quest IV" logo is vector pic art (not a bitmap we can edit), so we blit an
-+	// indexed EGA overlay onto the visual plane (see drawChtTitleOverlay). The title's sparkle
-+	// cels animate on top every frame, so we keep _chtTitleActive and re-assert the overlay in
-+	// drawCelAndShow. Active only while pic 96 is the current picture.
-+	_chtTitleActive = (pictureId == 96 && g_sci->getLanguage() == Common::ZH_TWN);
++	// The "King Arthur / The Search for the Grail" logo is vector pic art (not a bitmap we can
++	// edit), so we blit an indexed EGA overlay onto the visual plane (see drawChtTitleOverlay).
++	// The grail's radiating sparkle cels (view 210) animate on top every frame, so we keep
++	// _chtTitleActive and re-assert the overlay in drawCelAndShow — catching only one of the
++	// two draw paths gives "some characters covered, the rest fine".
++	// Pic 112 is the "King Arthur" title screen (the game draws only two pics before the menu:
++	// 112 and 110); confirmed by flipping the gate and looking at which screen the overlay landed on.
++	_chtTitleActive = (pictureId == 110 && g_sci->getLanguage() == Common::ZH_TWN);
 +	if (_chtTitleActive)
 +		drawChtTitleOverlay();
 +
@@ -304,7 +297,7 @@ index 2e901e8d..db7aa977 100644
  }
  
  // This one is the only one that updates screen!
-@@ -121,6 +192,11 @@ void GfxPaint16::drawCelAndShow(GuiResourceId viewId, int16 loopNo, int16 celNo,
+@@ -121,6 +195,11 @@
  
  		drawCel(view, loopNo, celNo, celRect, priority, paletteNo, scaleX, scaleY, scaleSignal);
  
@@ -316,11 +309,9 @@ index 2e901e8d..db7aa977 100644
  		if (getSciVersion() >= SCI_VERSION_1_1) {
  			if (!_screen->_picNotValidSci11) {
  				bitsShow(celRect);
-diff --git a/engines/sci/graphics/paint16.h b/engines/sci/graphics/paint16.h
-index d2421f0b..a96bfb9c 100644
 --- a/engines/sci/graphics/paint16.h
 +++ b/engines/sci/graphics/paint16.h
-@@ -45,6 +45,13 @@ public:
+@@ -45,6 +45,13 @@
  
  	void drawPicture(GuiResourceId pictureId, bool mirroredFlag, bool addToFlag, GuiResourceId paletteId);
  	void drawCelAndShow(GuiResourceId viewId, int16 loopNo, int16 celNo, uint16 leftPos, uint16 topPos, byte priority, uint16 paletteNo, uint16 scaleX = 128, uint16 scaleY = 128, uint16 scaleSignal = 0);
@@ -334,7 +325,7 @@ index d2421f0b..a96bfb9c 100644
  	void drawCel(GuiResourceId viewId, int16 loopNo, int16 celNo, const Common::Rect &celRect, byte priority, uint16 paletteNo, uint16 scaleX = 128, uint16 scaleY = 128, uint16 scaleSignal = 0);
  	void drawCel(GfxView *view, int16 loopNo, int16 celNo, const Common::Rect &celRect, byte priority, uint16 paletteNo, uint16 scaleX = 128, uint16 scaleY = 128, uint16 scaleSignal = 0);
  	void drawHiresCelAndShow(GuiResourceId viewId, int16 loopNo, int16 celNo, uint16 leftPos, uint16 topPos, byte priority, uint16 paletteNo, reg_t hiresHandle, bool storeDrawingInfo);
-@@ -109,6 +116,11 @@ private:
+@@ -109,6 +116,11 @@
  
  	HiresDrawData *_hiresDrawObjs;
  	bool _hiresPortraitWorkaroundFlag;
@@ -346,11 +337,9 @@ index d2421f0b..a96bfb9c 100644
  };
  
  } // End of namespace Sci
-diff --git a/engines/sci/graphics/ports.cpp b/engines/sci/graphics/ports.cpp
-index 1bfe51af..69758b7c 100644
 --- a/engines/sci/graphics/ports.cpp
 +++ b/engines/sci/graphics/ports.cpp
-@@ -62,9 +62,12 @@ void GfxPorts::init(bool usesOldGfxFunctions, GfxPaint16 *paint16, GfxText16 *te
+@@ -62,9 +62,12 @@
  	setPort(_menuPort);
  	_text16->SetFont(0);
  	_menuPort->rect = Common::Rect(0, 0, _screen->getScriptWidth(), _screen->getScriptHeight());
@@ -366,11 +355,9 @@ index 1bfe51af..69758b7c 100644
  
  	_wmgrPort = new Port(1);
  	_windowsById.resize(2);
-diff --git a/engines/sci/graphics/screen.cpp b/engines/sci/graphics/screen.cpp
-index 308fa82c..83556094 100644
 --- a/engines/sci/graphics/screen.cpp
 +++ b/engines/sci/graphics/screen.cpp
-@@ -84,6 +84,14 @@ GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _
+@@ -84,6 +84,14 @@
  		}
  	}
  
@@ -385,11 +372,9 @@ index 308fa82c..83556094 100644
  	// if not yet set, set those to script-width/height
  	if (!_width)
  		_width = _scriptWidth;
-diff --git a/engines/sci/graphics/screen.h b/engines/sci/graphics/screen.h
-index eaed025a..e65ddb9b 100644
 --- a/engines/sci/graphics/screen.h
 +++ b/engines/sci/graphics/screen.h
-@@ -78,6 +78,7 @@ public:
+@@ -78,6 +78,7 @@
  	uint16 getScriptHeight() { return _scriptHeight; }
  	uint16 getDisplayWidth() { return _displayWidth; }
  	uint16 getDisplayHeight() { return _displayHeight; }
@@ -397,7 +382,7 @@ index eaed025a..e65ddb9b 100644
  	byte getColorWhite() { return _colorWhite; }
  	byte getColorDefaultVectorData() { return _colorDefaultVectorData; }
  
-@@ -151,6 +152,13 @@ public:
+@@ -151,6 +152,13 @@
  	void setFontIsUpscaled(bool isUpscaled) { _fontIsUpscaled = isUpscaled; }
  	bool fontIsUpscaled() const { return _fontIsUpscaled; }
  
@@ -411,7 +396,7 @@ index eaed025a..e65ddb9b 100644
  	void grabPalette(byte *buffer, uint start, uint num) const;
  	void setPalette(const byte *buffer, uint start, uint num, bool update = true);
  
-@@ -249,6 +257,7 @@ private:
+@@ -249,6 +257,7 @@
  	 * to the screen size (and we therefore should not upscale it ourselves).
  	 */
  	bool _fontIsUpscaled;
@@ -419,11 +404,9 @@ index eaed025a..e65ddb9b 100644
  
  
  	// pixel related code, in header so that it can be inlined for performance
-diff --git a/engines/sci/graphics/text16.cpp b/engines/sci/graphics/text16.cpp
-index 9e5647f3..b0fb3ee0 100644
 --- a/engines/sci/graphics/text16.cpp
 +++ b/engines/sci/graphics/text16.cpp
-@@ -303,7 +303,21 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId
+@@ -303,7 +303,21 @@
  		// Break without spaces found, we split the very first word - may also be Kanji/Japanese
  
  		if (curChar > 0xFF) {
@@ -446,7 +429,7 @@ index 9e5647f3..b0fb3ee0 100644
  
  			// PC-9801 SCI actually added the last character, which shouldn't fit anymore, still onto the
  			//  screen in case maxWidth wasn't fully reached with the last character
-@@ -360,6 +374,7 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId
+@@ -360,6 +374,7 @@
  				// (game mentions Mixed Up Fairy Tales and uses English letters for that)
  				textPtr += 2;
  			}
@@ -454,7 +437,7 @@ index 9e5647f3..b0fb3ee0 100644
  		} else {
  			// Add a character to the count for games whose interpreter would count the
  			//  character that exceeded the width if a space hadn't been reached yet.
-@@ -432,6 +447,16 @@ void GfxText16::Width(const char *text, int16 from, int16 len, GuiResourceId org
+@@ -432,6 +447,16 @@
  }
  
  void GfxText16::StringWidth(const Common::String &str, GuiResourceId orgFontId, int16 &textWidth, int16 &textHeight) {
@@ -471,7 +454,7 @@ index 9e5647f3..b0fb3ee0 100644
  	Width(str.c_str(), 0, str.size(), orgFontId, textWidth, textHeight, true);
  }
  
-@@ -442,6 +467,14 @@ void GfxText16::ShowString(const Common::String &str, GuiResourceId orgFontId, i
+@@ -442,6 +467,14 @@
  #endif
  
  void GfxText16::DrawString(const Common::String &str, GuiResourceId orgFontId, int16 orgPenColor) {
@@ -486,7 +469,7 @@ index 9e5647f3..b0fb3ee0 100644
  	Draw(str.c_str(), 0, str.size(), orgFontId, orgPenColor);
  }
  
-@@ -569,6 +602,15 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
+@@ -569,6 +602,15 @@
  	int16 textWidth, maxTextWidth, textHeight;
  	int16 offset = 0;
  	int16 hline = 0;
@@ -502,7 +485,7 @@ index 9e5647f3..b0fb3ee0 100644
  	GuiResourceId previousFontId = GetFontId();
  	int16 previousPenColor = _ports->_curPort->penClr;
  	bool doubleByteMode = false;
-@@ -683,10 +725,18 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const
+@@ -683,10 +725,18 @@
  	_ports->penColor(previousPenColor);
  }
  
@@ -522,7 +505,7 @@ index 9e5647f3..b0fb3ee0 100644
  	Common::String text;
  	if (!g_sci->isLanguageRTL())
  		text = textOrig;
-@@ -700,11 +750,19 @@ void GfxText16::DrawString(const Common::String &textOrig) {
+@@ -700,11 +750,19 @@
  
  // we need to have a separate status drawing code
  //  In KQ4 the IV char is actually 0xA, which would otherwise get considered as linebreak and not printed
@@ -543,8 +526,6 @@ index 9e5647f3..b0fb3ee0 100644
  	Common::String str;
  	if (!g_sci->isLanguageRTL())
  		str = strOrig;
-diff --git a/engines/sci/graphics/view.cpp b/engines/sci/graphics/view.cpp
-index 3bc1bc7c..58d346d7 100644
 --- a/engines/sci/graphics/view.cpp
 +++ b/engines/sci/graphics/view.cpp
 @@ -19,6 +19,8 @@
@@ -556,7 +537,7 @@ index 3bc1bc7c..58d346d7 100644
  #include "sci/sci.h"
  #include "sci/engine/state.h"
  #include "sci/graphics/drivers/gfxdriver.h"
-@@ -791,6 +793,32 @@ byte GfxView::getMappedColor(byte color, uint16 scaleSignal, const Palette *pale
+@@ -791,6 +793,32 @@
  	return outputColor;
  }
  
@@ -589,7 +570,7 @@ index 3bc1bc7c..58d346d7 100644
  void GfxView::draw(const Common::Rect &rect, const Common::Rect &clipRect, const Common::Rect &clipRectTranslated,
  			int16 loopNo, int16 celNo, byte priority, uint16 EGAmappingNr, bool upscaledHires, uint16 scaleSignal) {
  	const Palette *palette = _embeddedPal ? &_viewPalette : &_palette->_sysPalette;
-@@ -799,6 +827,25 @@ void GfxView::draw(const Common::Rect &rect, const Common::Rect &clipRect, const
+@@ -799,6 +827,25 @@
  	const int16 celHeight = celInfo->height;
  	const int16 celWidth = celInfo->width;
  	const byte clearKey = celInfo->clearKey;
@@ -615,11 +596,9 @@ index 3bc1bc7c..58d346d7 100644
  	const byte drawMask = priority > 15 ? GFX_SCREEN_MASK_VISUAL : GFX_SCREEN_MASK_VISUAL|GFX_SCREEN_MASK_PRIORITY;
  
  	if (_embeddedPal)
-diff --git a/engines/sci/graphics/view.h b/engines/sci/graphics/view.h
-index 64f20a18..797f9b51 100644
 --- a/engines/sci/graphics/view.h
 +++ b/engines/sci/graphics/view.h
-@@ -75,6 +75,9 @@ public:
+@@ -75,6 +75,9 @@
  	uint16 getCelCount(int16 loopNo) const;
  	Palette *getPalette();
  
@@ -629,11 +608,9 @@ index 64f20a18..797f9b51 100644
  	bool isScaleable();
  
  	void adjustToUpscaledCoordinates(int16 &y, int16 &x);
-diff --git a/engines/sci/module.mk b/engines/sci/module.mk
-index 94d96a6e..b4c689eb 100644
 --- a/engines/sci/module.mk
 +++ b/engines/sci/module.mk
-@@ -48,6 +48,7 @@ MODULE_OBJS := \
+@@ -48,6 +48,7 @@
  	graphics/controls16.o \
  	graphics/coordadjuster.o \
  	graphics/cursor.o \
@@ -641,8 +618,6 @@ index 94d96a6e..b4c689eb 100644
  	graphics/fontkorean.o \
  	graphics/fontsjis.o \
  	graphics/macfont.o \
-diff --git a/engines/sci/sci.cpp b/engines/sci/sci.cpp
-index b4d28b79..b83a6818 100644
 --- a/engines/sci/sci.cpp
 +++ b/engines/sci/sci.cpp
 @@ -19,6 +19,9 @@
@@ -663,7 +638,7 @@ index b4d28b79..b83a6818 100644
  #include "sci/graphics/compare.h"
  #include "sci/graphics/controls16.h"
  #include "sci/graphics/coordadjuster.h"
-@@ -289,6 +293,34 @@ Common::Error SciEngine::run() {
+@@ -289,6 +293,34 @@
  	}
  */
  
@@ -698,7 +673,7 @@ index b4d28b79..b83a6818 100644
  	// Add the after market patches for the specified game, if they exist
  	_resMan->addNewGMPatch(_gameId);
  	_resMan->addNewD110Patch(_gameId);
-@@ -585,6 +617,19 @@ void SciEngine::initGraphics() {
+@@ -585,6 +617,19 @@
  
  	_gfxCache = new GfxCache(_resMan, _gfxScreen, _gfxPalette16);
  
@@ -718,7 +693,7 @@ index b4d28b79..b83a6818 100644
  #ifdef ENABLE_SCI32
  	if (getSciVersion() >= SCI_VERSION_2) {
  		// SCI32 graphic objects creation
-@@ -831,7 +876,90 @@ const char *SciEngine::getGameIdStr() const {
+@@ -831,7 +876,90 @@
  	return _gameDescription->gameId;
  }
  
@@ -809,8 +784,6 @@ index b4d28b79..b83a6818 100644
  	return _gameDescription->language;
  }
  
-diff --git a/engines/sci/sci.h b/engines/sci/sci.h
-index d9361700..0ce3bb5d 100644
 --- a/engines/sci/sci.h
 +++ b/engines/sci/sci.h
 @@ -26,6 +26,8 @@
@@ -822,11 +795,10 @@ index d9361700..0ce3bb5d 100644
  #include "sci/engine/vm_types.h"	// for Selector
  #include "sci/debug.h"	// for DebugState
  #include "sci/detection.h" // Shared code between detection and engine
-@@ -185,6 +187,15 @@ public:
- 	const char *getGameIdStr() const;
+@@ -186,6 +188,15 @@
  	Common::Language getLanguage() const;
  
-+	/**
+ 	/**
 +	 * Traditional Chinese fan-translation lookup. Returns the Big5-encoded
 +	 * translation for an original (English) on-screen string, or nullptr if
 +	 * there is none. Content-keyed so translations live in an external
@@ -835,10 +807,11 @@ index d9361700..0ce3bb5d 100644
 +	const char *getChtTranslation(const char *original) const;
 +	void loadChtTranslation();
 +
- 	/**
++	/**
  	 * Returns true if the game's language direction is Right To Left.
  	 * RTL support did not exist in the original SCI engine.
-@@ -406,6 +417,7 @@ private:
+ 	 * This is a ScummVM feature to support modern fan translations.
+@@ -406,6 +417,7 @@
  
  	const ADGameDescription *_gameDescription;
  	const SciGameId _gameId;
