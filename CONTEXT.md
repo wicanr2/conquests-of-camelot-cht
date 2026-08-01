@@ -55,9 +55,15 @@
 啟動 → Sierra logo → 標題（`Conquests of Camelot` logo ＋ 劍）→ credits 逐張輪播
 → **「Camelot Game Options」選單**（See the Intro / Start New Game / Restore Game）。
 
-- **[雷] 這個選單 Escape 與 Tab 都無效**，只吃滑鼠點擊。headless 擷取要用
-  `xdotool mousemove <x> <y>` + `click 1`，座標見 `tools/capture_ingame.sh`。
-- credits 會循環輪播（attract mode），不點選單就一直跑。
+- **[雷] 這個選單只吃 `Return`，不吃 `xdotool click`**（2026-08-01 更正——先前這裡寫的
+  「只吃滑鼠點擊」是錯的）。游標移到按鈕上、click 送出去，按鈕不會有任何反應；
+  正確做法是 **`Return` 按兩次**：第一次把選單叫出來，第二次選中預設的「觀看片頭」。
+  `tools/capture_ingame.sh` 的 `click 455 415` 是更早期版本的座標，現在點空——
+  它當年之所以能進遊戲，其實是靠後面那幾個 `Escape` 與 `Return`。
+- **[雷] Xvfb 沒有 window manager** → `xdotool windowactivate` 必定失敗
+  （`_NET_ACTIVE_WINDOW` 不支援）。PointerRoot focus 模式下，先 `mousemove` 把游標移進視窗，
+  XTEST 鍵盤事件才送得到。
+- credits 會循環輪播（attract mode），不動作就一直跑；選單要等輪播跑一輪（約 26 秒）才疊上來。
 
 ## 五、漏抽字串（要補，隨查隨記）
 
