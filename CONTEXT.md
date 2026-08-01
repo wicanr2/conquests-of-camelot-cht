@@ -169,7 +169,29 @@ bake_hires_eten.py            24×24
 而且 credits 的人名（Mark Seibert、Ken Williams…）本來就是真實姓名保留原文，
 職稱一併保留英文反而一致。
 
-## 十一、待實測
+## 十一、[HARD] Windows zip 不能放中文檔名
+
+使用者回報「Windows 下載解開後檔案不見了」。根因是 **zip 格式沒有檔名編碼欄位**：
+
+- Info-ZIP 的 `zip` 把檔名以 UTF-8 bytes 寫入，**但不設 UTF-8 旗標**（general purpose bit 11 / EFS）
+- 繁中 Windows 的解壓工具看到沒有旗標，就用系統 ANSI（CP950）去解讀那串 UTF-8 bytes
+- 輕則檔名亂碼；重則那串 bytes 在 CP950 裡是非法序列，**該檔直接被跳過** → 就是「檔案消失」
+
+修法三層（`tools/mkzip.py` 與兩支 Windows 打包腳本）：
+
+| 層 | 做法 | 為什麼 |
+|---|---|---|
+| 檔名 | **一律 ASCII**（`PLAY-CAMELOT-CHT.bat`、`README-CHT.txt`） | 根治，中文留在檔案內容裡 |
+| zip | 仍設 UTF-8 旗標並在打包後驗一次 | 保險，日後有人加了中文檔名不會回到老問題 |
+| 內容 | `.bat` 存 **CP950**、`.txt` 存 **UTF-8 with BOM**，都用 CRLF | cmd 配 `chcp 950` 才顯示得出中文；記事本靠 BOM 辨識 |
+
+**tar.gz 沒有這個問題**（tar 的檔名就是 bytes，macOS 全系統 UTF-8），所以 macOS 包裡的
+「啟動.command」「修復-macOS.command」保留中文檔名。
+
+**[雷] 產這種檔案不要「先 cat 再轉檔」**——中間那步靜默失敗時，產物看起來「檔案有在」，
+但編碼是錯的（第一次改就是這樣，BOM 沒寫進去卻沒有任何錯誤訊息）。用 python heredoc 一次寫對。
+
+## 十二、待實測
 
 - 遊戲內選單列（File／Game／Speed／Action／Information）的中文顯示效果，
   尤其**選單列高度**（LSL2 踩過：9px 選單列裝不下 14px 中文 → 殘影）。

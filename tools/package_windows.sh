@@ -37,34 +37,47 @@ if stage_mt32_rom "$STAGE/game"; then
 fi
 
 # .bat 啟動器：auto-detect 直接啟動內嵌遊戲(game/ 內只有一款遊戲,免指定 target)
-cat > "$STAGE/玩-亞瑟王傳奇-繁中.bat" <<BAT
-@echo off
+# [HARD] 包內檔名也要 ASCII——zip 沒有檔名編碼欄位，繁中 Windows 會用 CP950 去解讀
+# UTF-8 bytes，輕則亂碼、重則直接跳過該檔（見 tools/mkzip.py 的說明）。
+# .bat 內容存 CP950，cmd 配 chcp 950 才顯示得出中文。
+python3 - "$STAGE/PLAY-CAMELOT-CHT.bat" "$MT32ARGS" <<'PYBAT'
+import sys
+open(sys.argv[1], 'w', encoding='cp950', newline='\r\n').write("""@echo off
 chcp 950 >nul
 cd /d "%~dp0"
-scummvm.exe --path="%~dp0game" --language=tw --auto-detect $MT32ARGS
-BAT
+echo 亞瑟王傳奇 尋找聖杯 繁體中文化（完整版）
+echo.
+scummvm.exe --path="%~dp0game" --language=tw --auto-detect """ + sys.argv[2] + "\n")
+PYBAT
 
-cat > "$STAGE/README.txt" <<'TXT'
-亞瑟王傳奇 尋找聖杯（Conquests of Camelot: The Search for the Grail）繁體中文化 — Windows x86_64 完整包
+# .txt 存 UTF-8 with BOM，Windows 記事本靠 BOM 辨識中文
+# .txt 存 UTF-8 with BOM：Windows 10 之後的記事本靠 BOM 正確辨識中文。
+# 一次寫對，不要先 cat 再轉檔——中間那步很容易靜默失敗，而且產物看起來「檔案有在」。
+python3 - "$STAGE/README-CHT.txt" <<'PYTXT'
+import sys
+open(sys.argv[1], 'w', encoding='utf-8-sig', newline='\r\n').write('''亞瑟王傳奇 尋找聖杯（Conquests of Camelot: The Search for the Grail）繁體中文化 — Windows x86_64 完整包
 
-雙擊「玩-亞瑟王傳奇-繁中.bat」即可開始遊戲。
+雙擊 PLAY-CAMELOT-CHT.bat 即可開始遊戲。
 
 內容物：
+  PLAY-CAMELOT-CHT.bat    啟動器（檔名用英文是為了避開 zip 的檔名編碼問題）
   scummvm.exe             patched ScummVM（含 Big5 中文繪字引擎改動 + MT-32 音源模擬）
   SDL2.dll / libwinpthread-1.dll   執行所需 runtime（其餘為 Windows 系統內建 DLL）
   game/                    遊戲資源 + 中文資料（translation.tsv、Big5 字型）+ MT-32 ROM（若隨附）
 
 若要用 Roland MT-32 音源（推薦，音色遠優於 AdLib）：
-  已內附 ROM 時 .bat 會自動帶 --music-driver=mt32；若想改用其他驅動，
+  已內附 ROM 時啟動器會自動帶 --music-driver=mt32；若想改用其他驅動，
   手動執行：scummvm.exe --path="game" --language=tw --auto-detect --music-driver=<driver>
 
 repo（patch-only，不含遊戲資源/ROM）：https://github.com/wicanr2/conquests-of-camelot-cht
-TXT
+''')
+PYTXT
+
 
 OUT_TMP="$OUT"
 rm -f "$OUT_TMP"
-echo ">> zip 打包"
-( cd "$STAGE" && zip -qr "$OUT_TMP" . )
+echo ">> zip 打包（檔名全 ASCII + UTF-8 旗標）"
+python3 "$ROOT/tools/mkzip.py" "$OUT_TMP" "$STAGE"
 # [HARD] docker 產出的檔案 owner 是 root
 docker run --rm -v "$DIST:/d" cam-build:latest chown -R 1000:1000 /d 2>/dev/null || true
 echo ">> 完成: $OUT_TMP ($(du -h "$OUT_TMP" | cut -f1))"
