@@ -204,7 +204,7 @@ Aphrodite ＝ 阿芙羅黛蒂、Venus ＝ 維納斯。
 
 ## 目前進度
 
-**v1.0 已發布**：[Releases](https://github.com/wicanr2/conquests-of-camelot-cht/releases/tag/v1.0)
+**v1.1 已發布**：[Releases](https://github.com/wicanr2/conquests-of-camelot-cht/releases/latest)
 （Linux／Windows／macOS 三平台 patch 版）。
 
 | 項目 | 狀態 |

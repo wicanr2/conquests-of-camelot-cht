@@ -224,3 +224,40 @@ hi-res 路徑用 `dispTop = top * 2` 繪製，所以**一個邏輯單位 = 2 個
   可能被裁掉右邊 2px（kb 建議選單用 16）——要實機看過再調。
 - 遊戲物件名（console `vmvars g 1`），供 `send ?<obj> newRoom <n>` 換場用。
 - 640×400 upscale 已確認可用（本作無常駐狀態列，KQ1SCI 那個坑不適用）。
+
+## 十三、推廣片（2026-08-01）
+
+配樂用**原版 MT-32 側錄**（rulebook 93 鐵則 1：素材真實性，不可自產合成）。
+
+**側錄方式**（`tools/record_mt32.sh`）：`SDL_AUDIODRIVER=disk` + `SDL_DISKAUDIOFILE`，
+引擎帶 `--music-driver=mt32 --extrapath=<放 ROM 的目錄>`。
+
+- **[HARD] 不要設 `SDL_DISKAUDIODELAY=0`**。SCI 的音樂排序器依**遊戲時鐘**推進；
+  設成全速輸出會灌出 GB 級檔案，而且因為排序器沒跟著跑，內容整段是靜音。必須即時側錄。
+  實測 146 秒 wall-clock 得到 25.7 MB raw（44100/stereo/s16le），時長剛好對得上。
+- **標題曲在 3–65 秒**，65 秒後遊戲不再播音樂。逐 5 秒 `volumedetect` 掃出來的，
+  不要假設「音樂在最前面」。抽 3.5–64.5 秒當配樂，mean −29.6 dB、max −12.1 dB（無 clipping）；
+  合成時 `volume=8dB` 提上來。
+
+**Headless 操作的兩個雷**：
+
+- **Xvfb 沒有 window manager** → `xdotool windowactivate` 會失敗
+  （`Your windowmanager claims not to support _NET_ACTIVE_WINDOW`）。
+  PointerRoot focus 模式下，**把滑鼠 `mousemove` 進視窗**就能讓 XTEST 鍵盤事件送達。
+- **開場選單只吃鍵盤，不吃 `xdotool click`**。游標移到按鈕上、click 送出去，按鈕不會有反應。
+  正確做法是 `Return`：第一次叫出選單，第二次選中預設的「觀看片頭」。
+  `tools/capture_ingame.sh` 裡的 `click 455 415` 是更早期版本的座標，現在點空——
+  它當年之所以能進遊戲，其實是靠後面那幾個 `Escape` 與 `Return`。
+
+**影片合成**（`tools/make_promo.sh`）：靜態圖 + fade，不用 zoompan（幀數爆炸）；
+配樂先 `aloop` 再 `atrim` 到影片長度，不要 `-shortest`（會以較短的音軌為準截掉結尾卡）。
+theme 色票取自實機截圖的 histogram：羊皮 `#FDF1CC`、封蠟紅 `#B2493C`、深棕 `#5A2F1D`，
+母題沿用遊戲畫面本身的四角紋章方塊。
+
+- **[雷] ImageMagick 的 `-annotate` geometry 只吃 `+X+Y`**。寫成 `+5+5-120` 想表達
+  「X=5, Y=5-120」會被解析成 (5,5)，標題與副標就疊在一起。要自己算好寫 `+5-115`。
+- **[雷] 產出的 mp4 要抽幀逐張看**。這次靠讀圖才發現有一格用到了「被 debugger console
+  蓋住半個畫面」的廢截圖——檔案存在、尺寸正常，只看檔名完全看不出來。
+
+**[IP] 影片配樂是原版遊戲音樂**（作曲 Mark Seibert），著作權不屬於本專案。
+產物只放本機 `promo/`（已 gitignore），要公開上傳前需先確認授權（rulebook 93 但書）。
