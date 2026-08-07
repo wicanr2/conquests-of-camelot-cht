@@ -175,7 +175,10 @@ Aphrodite ＝ 阿芙羅黛蒂、Venus ＝ 維納斯。
 | macOS | `CAMELOT-CHT-patch-macos-universal.tar.gz` | 解壓後先跑「修復-macOS.command」解除 Gatekeeper 隔離，再跑「啟動.command」 |
 
 啟動後在 ScummVM 畫面按 **Add Game**，選到你的遊戲目錄（裡面有 `RESOURCE.MAP` 那個），
-選中遊戲按 Start。中文資料由啟動器的 `--extrapath` 帶進去，**不必複製任何檔案到遊戲目錄**。
+選中遊戲按 Start。**不必複製任何檔案到遊戲目錄。**
+
+> **一定要透過包內的啟動器啟動**（`PLAY-CAMELOT-CHT.bat`／AppImage／「啟動.command」）。
+> 中文資料的位置是啟動器交給引擎的，直接執行 `scummvm` 不會有中文。
 
 ### 音樂請用 MT-32
 
@@ -209,7 +212,7 @@ Aphrodite ＝ 阿芙羅黛蒂、Venus ＝ 維納斯。
 
 ## 目前進度
 
-**v1.1 已發布**：[Releases](https://github.com/wicanr2/conquests-of-camelot-cht/releases/latest)
+**v1.2 已發布**：[Releases](https://github.com/wicanr2/conquests-of-camelot-cht/releases/latest)
 （Linux／Windows／macOS 三平台 patch 版）。
 
 | 項目 | 狀態 |
