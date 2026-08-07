@@ -101,6 +101,10 @@ jobs:
           cat > "$STAGE/啟動.command" <<'RUNEOF'
           #!/bin/bash
           cd "$(dirname "$0")"
+          # [HARD] SCI_CHT_DATA 是中文資料的可靠來源：CLI 的 --extrapath 只有在
+          # 「直接啟動」時生效，玩家 Add Game 產生 target 後從 launcher 按 Start
+          # 就會被忽略，整個遊戲跑成英文（github issue #1）。兩者都留著。
+          export SCI_CHT_DATA="$PWD/cht-data"
           ./scummvm --extrapath="$PWD/cht-data" --language=tw "$@"
           RUNEOF
           chmod +x "$STAGE/啟動.command"

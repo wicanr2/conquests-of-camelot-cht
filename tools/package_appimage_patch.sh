@@ -5,7 +5,10 @@
 #   - MT-32 ROM 有版權，不附、也不設 mt32 預設（無 ROM 又設 mt32 會彈一次阻擋框再回退 AdLib）
 #
 # 玩家自備正版遊戲，啟動後用 ScummVM 的 Add Game 指到遊戲目錄即可。
-# 中文資料靠 --extrapath 指向包內的 cht-data/，走 SearchMan，玩家不必複製檔案。
+# 中文資料靠 SCI_CHT_DATA 指向包內的 cht-data/，玩家不必複製檔案。
+# [HARD] 不能只用 --extrapath：實測 CLI 的 --extrapath 只有在「直接啟動」
+# （--path + --auto-detect）時生效，玩家 Add Game 產生 target 之後從 launcher
+# 按 Start，那條路徑上會被忽略 → 整個遊戲跑成英文（github issue #1）。
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT/.." && pwd)"
@@ -39,7 +42,9 @@ cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
-# --extrapath 讓引擎透過 SearchMan 找到中文資料，玩家不必把檔案複製進遊戲目錄。
+# SCI_CHT_DATA 由引擎自己加進 SearchMan，不受 ScummVM 啟動路徑差異影響。
+# --extrapath 與 --language 一併保留：直接啟動的情境仍走得通，也讓 MT-32 ROM 找得到。
+export SCI_CHT_DATA="$HERE/usr/share/cht-data"
 exec "$HERE/usr/bin/scummvm" --extrapath="$HERE/usr/share/cht-data" --language=tw "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"

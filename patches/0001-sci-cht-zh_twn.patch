@@ -638,7 +638,15 @@
  #include "sci/graphics/compare.h"
  #include "sci/graphics/controls16.h"
  #include "sci/graphics/coordadjuster.h"
-@@ -289,6 +293,34 @@
+@@ -125,6 +129,7 @@
+ 	_speedThrottleDelay(kSpeedThrottleDefaultDelay),
+ 	_gameDescription(desc),
+ 	_gameId(gameId),
++	_chtActive(false),
+ 	_resMan(nullptr),
+ 	_scriptPatcher(nullptr),
+ 	_gamestate(nullptr),
+@@ -289,6 +294,53 @@
  	}
  */
  
@@ -666,6 +674,25 @@
 +		return Common::kNoError;
 +	}
 +
++	// CHT: the patch build ships its data next to the launcher, and the launcher points
++	// SCI_CHT_DATA at that directory. This exists because --extrapath is not enough:
++	// measured with `-d 1`, a command-line --extrapath is honoured when the game is
++	// started directly (--path + --auto-detect) but silently ignored once a target is
++	// named — which is exactly what happens after the player does Add Game and presses
++	// Start in the launcher. Putting the directory on the search path here works
++	// regardless of how the game was launched. (github issue #1)
++	if (const char *chtDir = getenv("SCI_CHT_DATA")) {
++		if (*chtDir)
++			SearchMan.addDirectory(Common::Path(chtDir), 0, 1, true);
++	}
++
++	// Decide whether this run is the Chinese edition. Must happen before anything asks
++	// getLanguage() — GfxScreen's 640x400 upscale gate and GfxCache's font choice both
++	// do, and both come later in run(). It must also happen *after* _resMan->init(),
++	// which is what puts the game directory on the search path; probing earlier just
++	// returns false.
++	_chtActive = !getenv("SCI_CHT_OFF") && Common::File::exists("translation.tsv");
++
 +	// Traditional Chinese fan translation: load the content-keyed translation table.
 +	if (getLanguage() == Common::ZH_TWN)
 +		loadChtTranslation();
@@ -673,7 +700,7 @@
  	// Add the after market patches for the specified game, if they exist
  	_resMan->addNewGMPatch(_gameId);
  	_resMan->addNewD110Patch(_gameId);
-@@ -585,6 +617,19 @@
+@@ -585,6 +637,19 @@
  
  	_gfxCache = new GfxCache(_resMan, _gfxScreen, _gfxPalette16);
  
@@ -693,7 +720,7 @@
  #ifdef ENABLE_SCI32
  	if (getSciVersion() >= SCI_VERSION_2) {
  		// SCI32 graphic objects creation
-@@ -831,7 +876,90 @@
+@@ -831,7 +896,104 @@
  	return _gameDescription->gameId;
  }
  
@@ -781,6 +808,20 @@
 +		if (Common::parseLanguage(ConfMan.get("language")) == Common::ZH_TWN)
 +			return Common::ZH_TWN;
 +	}
++
++	// [HARD] The config key alone is not enough. Players of the CHT patch go
++	// Add Game -> target -> Start from the launcher, and on that path the language
++	// setting never reaches here: measured with `-d 1`, only
++	// `--path=<dir> --auto-detect --language=tw` loads the table; naming a target
++	// loads 0 entries whether the language comes from the command line or from the
++	// target's own ini key. So the whole patch silently ran as English for anyone
++	// using it the normal way (github issue #1).
++	// Presence of the patch data is the honest signal: if translation.tsv is on the
++	// search path (game dir or --extrapath), this is the Chinese edition.
++	// SCI_CHT_OFF=1 forces English for A/B comparison against the original.
++	if (_chtActive)
++		return Common::ZH_TWN;
++
  	return _gameDescription->language;
  }
  
@@ -811,11 +852,12 @@
  	 * Returns true if the game's language direction is Right To Left.
  	 * RTL support did not exist in the original SCI engine.
  	 * This is a ScummVM feature to support modern fan translations.
-@@ -406,6 +417,7 @@
+@@ -406,6 +417,8 @@
  
  	const ADGameDescription *_gameDescription;
  	const SciGameId _gameId;
 +	Common::HashMap<Common::String, Common::String> _chtTranslation; /**< CHT: English -> Big5 */
++	bool _chtActive; /**< CHT: translation.tsv reachable => run as ZH_TWN (see getLanguage) */
  	ResourceManager *_resMan; /**< The resource manager */
  	ScriptPatcher *_scriptPatcher; /**< The script patcher */
  	EngineState *_gamestate;

@@ -66,7 +66,8 @@ private:
 	GuiResourceId _resourceId;
 	GfxFontFromResource *_asciiFont; // original SCI font, for single-byte glyphs
 	Graphics::Big5Font *_big5;       // shared Traditional Chinese bitmap font (low-res 16px)
-	int _big5Height;
+	int _big5Height;   // 行距（排版用，會被 cap）
+	int _big5GlyphH;   // 低解析字模的真實高度（繪製用），見 fontchinese.cpp 建構子
 
 	// Hi-res font (own format, not Graphics::Big5Font which is fixed 16px): each glyph is
 	// _hiH rows x (_hiW/8) bytes, keyed by big-endian Big5 code -> offset into _hiData.

@@ -38,7 +38,7 @@ static const char *kChineseFontFile = "camelot_big5.fnt";
 // 16px so dialogue fits KQ4's compact portrait/message boxes without overflowing (issue #1).
 // Low-res advance (menu path): the built-in Graphics::Big5Font glyph is a fixed 16px wide,
 // so the cell must stay wide enough not to clip it. Menu text uses this.
-static const int kBig5Width = 14;
+static const int kBig5Width = 16;
 // Hi-res advance (dialogue path): the 20px hi-res glyph box exactly fills the 20px display
 // advance (2 * kBig5WidthHi), so characters pack edge-to-edge — dense per line but still big
 // enough to read (validated in leisure_suit_2; player feedback: 字太大/太鬆/台詞被截斷).
@@ -62,7 +62,7 @@ bool GfxFontChinese::useHiRes() const {
 }
 
 GfxFontChinese::GfxFontChinese(ResourceManager *resMan, GfxScreen *screen, GuiResourceId resourceId)
-	: _screen(screen), _resourceId(resourceId), _big5(nullptr), _big5Height(14) {
+	: _screen(screen), _resourceId(resourceId), _big5(nullptr), _big5Height(14), _big5GlyphH(15) {
 	// Original SCI font for single-byte (ASCII / control) glyphs.
 	_asciiFont = new GfxFontFromResource(resMan, screen, resourceId);
 
@@ -71,6 +71,9 @@ GfxFontChinese::GfxFontChinese(ResourceManager *resMan, GfxScreen *screen, GuiRe
 		_big5 = new Graphics::Big5Font();
 		_big5->loadPrefixedRaw(fontFile, _big5Height);
 		_big5Height = _big5->getFontHeight();
+		// 字模的真實高度，繪製用。_big5Height 之後會被 cap 成「行距」，兩者不是同一件事
+		// ——低解析路徑先前拿被 cap 過的行距去畫，等於把字底部切掉 2 列。
+		_big5GlyphH = _big5Height;
 	} else {
 		warning("GfxFontChinese: could not open '%s'; Chinese glyphs will be blank", kChineseFontFile);
 	}
@@ -172,7 +175,7 @@ void GfxFontChinese::draw(uint16 chr, int16 top, int16 left, byte color, bool gr
 	memset(glyph, 0, sizeof(glyph));
 	bool drawn = false;
 	if (_big5)
-		drawn = _big5->drawBig5Char(glyph, point, kBig5Width, _big5Height, kBig5Width,
+		drawn = _big5->drawBig5Char(glyph, point, kBig5Width, _big5GlyphH, kBig5Width,
 		                            /*color*/ 1, /*outlineColor*/ 0, /*outline*/ false, /*bpp*/ 1);
 	if (!drawn) {
 		// Fall back to a placeholder so missing glyphs are visible, not silent.
@@ -183,24 +186,18 @@ void GfxFontChinese::draw(uint16 chr, int16 top, int16 left, byte color, bool gr
 	uint16 screenWidth = _screen->fontIsUpscaled() ? _screen->getDisplayWidth() : _screen->getWidth();
 	uint16 screenHeight = _screen->fontIsUpscaled() ? _screen->getDisplayHeight() : _screen->getHeight();
 
-	// 同 drawHiRes：黑色那一趟膨脹一圈，補回 SCI 外框字的黑邊。
-	const bool dilate = (color == 0);
-	for (int y = 0; y < _big5Height; y++) {
+	// [HARD] 這條路徑**不**做膨脹。膨脹是給 hi-res 外框字用的（SCI 兩趟疊畫，黑色那趟
+	// 要比白色本體大一圈才不會被蓋掉）。低解析只走選單，那是單純的黑字白底、沒有第二趟；
+	// 在這裡膨脹會讓 16x15 的中文字模每邊各胖 1px，選單列裡整排字糊成一團黑塊
+	// （github issue #1 的第一張截圖）。
+	for (int y = 0; y < _big5GlyphH; y++) {
 		for (int x = 0; x < kBig5Width; x++) {
 			if (!glyph[y * kBig5Width + x])
 				continue;
-			int screenX = left + x;
-			int screenY = top + y;
-			if (dilate) {
-				static const int kOff[5][2] = {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-				for (int i = 0; i < 5; i++) {
-					const int sx = screenX + kOff[i][0], sy = screenY + kOff[i][1];
-					if (0 <= sx && sx < screenWidth && 0 <= sy && sy < screenHeight)
-						_screen->putFontPixel(top, sx, y + kOff[i][1], color);
-				}
-			} else if (0 <= screenX && screenX < screenWidth && 0 <= screenY && screenY < screenHeight) {
+			const int screenX = left + x;
+			const int screenY = top + y;
+			if (0 <= screenX && screenX < screenWidth && 0 <= screenY && screenY < screenHeight)
 				_screen->putFontPixel(top, screenX, y, color);
-			}
 		}
 	}
 }

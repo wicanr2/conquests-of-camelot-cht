@@ -41,8 +41,9 @@ cd /d "%~dp0"
 echo 亞瑟王傳奇 尋找聖杯 繁體中文化
 echo.
 echo 第一次執行請先按 Add Game，選到你的遊戲目錄（裡面有 RESOURCE.MAP 那個）。
-echo 中文資料由 --extrapath 帶進去，不必複製任何檔案到遊戲目錄。
+echo 中文資料由啟動器帶進去，不必複製任何檔案到遊戲目錄。
 echo.
+set SCI_CHT_DATA=%~dp0cht-data
 scummvm.exe --extrapath="%~dp0cht-data" --language=tw
 """)
 PYBAT
@@ -63,7 +64,7 @@ Windows x86_64 — patch 版（不含遊戲）
   2. 在 ScummVM 畫面按「Add Game...」，選到你的遊戲目錄（裡面有 RESOURCE.MAP 那個）
   3. 選中遊戲，按 Start
 
-中文資料在 cht-data/，由 .bat 的 --extrapath 帶進去，不必複製到遊戲目錄。
+中文資料在 cht-data/，由 .bat 帶進去（SCI_CHT_DATA），不必複製到遊戲目錄。
 
 想用 Roland MT-32 音源（音色遠優於 AdLib，也是這一作當年的設計音源）：
   MT-32 ROM 有版權，本包不附。自備 MT32_CONTROL.ROM 與 MT32_PCM.ROM 之後，

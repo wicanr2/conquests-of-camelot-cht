@@ -96,8 +96,10 @@
 
 ## 七、中文顯示（2026-08-01 實機驗證通過）
 
-啟用方式：**`--language=tw`**（SCI0 走 CLI 即可，不必寫進 target config——
-那是 SCI1 的作法，別混）。實機確認對白框中文正確斷行、標點正常、框會依中文長度自動加大。
+啟用方式：**只要 `translation.tsv` 在搜尋路徑上就啟用**（引擎自己判定，見第十二之二節）。
+patch 版的啟動器用 `SCI_CHT_DATA=<cht-data 目錄>` 把資料交給引擎。
+⚠ 早先這裡寫的「`--language=tw` 即可」**只在直接啟動時成立**，玩家從 launcher
+啟動時無效——那是 issue #1 的根因。實機確認對白框中文正確斷行、標點正常、框會依中文長度自動加大。
 
 ### 字形：倚天 (ETEN 3.53) 原生點陣，非 TTF
 
@@ -224,12 +226,60 @@ hi-res 路徑用 `dispTop = top * 2` 繪製，所以**一個邏輯單位 = 2 個
 
 ## 十二、待實測
 
-- 遊戲內選單列（File／Game／Speed／Action／Information）的中文顯示效果，
-  尤其**選單列高度**（LSL2 踩過：9px 選單列裝不下 14px 中文 → 殘影）。
-  低解析路徑的 advance 目前沿用 kq4 的 `kBig5Width=14`，而倚天 16×15 glyph 寬 16，
-  可能被裁掉右邊 2px（kb 建議選單用 16）——要實機看過再調。
+- ~~遊戲內選單列的中文顯示效果~~ → **2026-08-07 實測完畢，三個 bug，見第十二之二節**。
+  這一項在待實測欄位裡擺了六天沒做，期間發了兩個版本；玩家一開選單就看到，
+  而它就寫在這份文件的「待實測」裡。**待實測清單要在發版前清掉，不是留著。**
 - 遊戲物件名（console `vmvars g 1`），供 `send ?<obj> newRoom <n>` 換場用。
 - 640×400 upscale 已確認可用（本作無常駐狀態列，KQ1SCI 那個坑不適用）。
+
+## 十二之二、[HARD] 中文為什麼對玩家沒生效（github issue #1，2026-08-07）
+
+回報者附了兩張截圖：選單列的中文糊成一片黑塊、對話框的中文左右互相重疊。
+追下去發現的根因比表面嚴重——**patch 版對照著說明操作的玩家，整個遊戲是英文的**。
+
+### 一、`--extrapath` 與 `--language` 在玩家的啟動路徑上都不生效
+
+用 `-d 1` 量出來的（看 `CHT: loaded N translation entries` 這行）：
+
+| 啟動方式 | 中文資料 | 結果 |
+|---|---|---|
+| `--path=<dir> --auto-detect --language=tw --extrapath=<dir>` | CLI | ✅ 4554 |
+| `scummvm camelot --language=tw --extrapath=<dir>` | CLI | ❌ 0 |
+| `scummvm camelot`，ini `[camelot] language=zh_TW` | CLI extrapath | ❌ 0 |
+| `scummvm camelot`，ini `[scummvm] extrapath=` | ini | ✅ 4554 |
+| `scummvm camelot`，ini `[camelot] extrapath=` | ini | ✅ 4554 |
+| `scummvm camelot`，資料直接放進遊戲目錄 | game dir | ✅ 4554 |
+
+**只要指定 target，CLI 給的 `--extrapath` 與 `--language` 就會被忽略**，
+而「Add Game → 選遊戲 → Start」正是 patch 版說明書要玩家走的流程。
+CLAUDE.md ⑥ 寫的「`--extrapath` 指向包內 cht-data 就能啟用中文」只在直接啟動時成立。
+
+**這個 bug 撐過了 v1.0 與 v1.1**，因為我所有的驗證腳本都用
+`--path=/game --auto-detect --language=tw`——那是六種組合裡唯一會過的那一種。
+**用開發者自己的啟動方式驗收，等於沒驗收。**
+
+### 二、修法：資料在就是中文版，不看語言設定
+
+- 引擎讀 `SCI_CHT_DATA=<dir>`，自己 `SearchMan.addDirectory`（不受啟動路徑差異影響）
+- `_chtActive = Common::File::exists("translation.tsv")`，`getLanguage()` 據此回 `ZH_TWN`
+- **判定必須放在 `_resMan->init()` 之後**：那才是把遊戲目錄放上搜尋路徑的地方，
+  更早探測一律回 false（第一版就是放太早，改完仍然沒生效，白編一次）
+- `SCI_CHT_OFF=1` 逃生門，用來跑英文對照組
+- 三個 patch 啟動器（AppImage / .bat / macOS .command）都要 export `SCI_CHT_DATA`
+
+### 三、低解析（選單）路徑的三個疊在一起的顯示 bug
+
+同一則 issue 的第二個症狀。低解析路徑只走選單與缺字 fallback，先前從未實機看過
+（第十二節「待實測」擺著沒做）：
+
+| 問題 | 症狀 | 修法 |
+|---|---|---|
+| 黑字被膨脹 | 選單列整排糊成黑塊 | 低解析**不做**膨脹——膨脹是給 hi-res 外框字用的，選單是單純黑字白底、沒有第二趟 |
+| advance 14px < 字模 16px | 同一行越後面的字疊得越厲害 | `kBig5Width` 14 → 16（倚天字模本來就是 16 寬） |
+| 用行距當字模高度 | 字底部被切掉 2 列 | 分開 `_big5Height`（行距，會 cap）與 `_big5GlyphH`（字模真高） |
+
+**第三點是第八之二節那個 bug 的同一個病**：行距與字模高度是兩件事，混用就出錯。
+hi-res 修的時候沒想到低解析也有一份。
 
 ## 十三、推廣片（2026-08-01）
 

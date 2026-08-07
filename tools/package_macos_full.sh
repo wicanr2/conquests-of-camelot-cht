@@ -43,6 +43,7 @@ fi
 cat > "$APP/啟動.command" <<RUNEOF
 #!/bin/bash
 cd "\$(dirname "\$0")"
+export SCI_CHT_DATA="\$PWD/cht-data"
 ./scummvm --path="\$PWD/game" --extrapath="\$PWD/cht-data" --language=tw --auto-detect$MT32NOTE "\$@"
 RUNEOF
 chmod +x "$APP/啟動.command"
